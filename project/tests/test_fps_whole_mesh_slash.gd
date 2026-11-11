@@ -238,14 +238,17 @@ func _check_shot_severs_slice_limb(target: Dictionary) -> void:
 	await _aim_level(target.actor.global_position, WAIST_HEIGHT)
 	var source: MeshInstance3D = target.mesh
 	var arm: Vector3
+	var thigh: Vector3
 	for hitbox in target.hitboxes:
 		if hitbox.bone == &"LeftArm":
 			arm = source.to_local(hitbox.area.global_position)
-			break
+		elif hitbox.bone == &"RightUpLeg":
+			thigh = source.to_local(hitbox.area.global_position)
 	var slash := _swipe(SWIPE)
 	if not _expect(slash.get("ok", false), "the second waist slice prepares a rigid torso for the shotgun"):
 		return
 	var upper: RigidBody3D
+	var lower: RigidBody3D
 	var siblings: Array = []
 	for body: RigidBody3D in slash.fragments:
 		body.freeze = true
@@ -255,19 +258,15 @@ func _check_shot_severs_slice_limb(target: Dictionary) -> void:
 			upper = body
 		else:
 			siblings.append(body)
-	if not _expect(upper != null, "the waist cut retains the upper body and its arms"):
+			if bounds.size.y > 0.65:
+				lower = body
+	if not _expect(upper != null and lower != null, "the waist cut retains both the upper and lower body"):
 		_press_reset()
 		return
 	upper.global_position += Vector3(1.0, 0.25, 1.25)
 	upper.rotate_y(deg_to_rad(24.0))
 	upper.reset_physics_interpolation()
-	var upper_mesh := upper.get_node("Mesh") as MeshInstance3D
-	var viewpoint := upper_mesh.to_global(arm + Vector3(1.7, 0.3, 2.4))
-	arena.player.global_position = Vector3(viewpoint.x, -0.055, viewpoint.z)
-	arena.player.velocity = Vector3.ZERO
-	arena.camera.position.y += viewpoint.y - arena.camera.global_position.y
-	arena._look_at(upper_mesh.to_global(arm))
-	await _physics_frames()
+	await _aim_at_fragment(upper, arm, Vector3(1.7, 0.3, 2.4))
 	if _expect(arena._raycast_camera().get("collider") == upper, "the shotgun ray reaches the moved, rotated upper fragment"):
 		arena.pellet_count = 8
 		arena.fire_shake_distance = 0.0
@@ -285,7 +284,29 @@ func _check_shot_severs_slice_limb(target: Dictionary) -> void:
 				and sever.limb in bodies and limb_mesh.mesh.get_aabb().position.x > 0.13
 				and siblings.all(func(body: RigidBody3D) -> bool: return body in bodies),
 				"the hit releases only the local arm and preserves every unrelated fragment")
+			await _aim_at_fragment(lower, thigh, Vector3(-1.7, 0.3, 2.4))
+			_expect(not is_instance_valid(upper), "the original upper body is freed before shooting its sibling")
+			if _expect(arena._raycast_camera().get("collider") == lower, "the next ray hits the surviving lower fragment"):
+				arena.shot_cooldown = 0.0
+				var followup: Dictionary = arena._shoot()
+				if _expect(followup.get("severed", false) and followup.get("bone") == &"RightUpLeg",
+						"the second shell severs a limb from the sibling fragment"):
+					await _physics_frames()
+					_expect(bodies.size() == slash.fragments.size() + 2 and bodies.all(func(body: RigidBody3D) -> bool:
+						var peers := body.get_collision_exceptions()
+						return peers.size() == bodies.size() - 1 and peers.all(func(peer: PhysicsBody3D) -> bool:
+							return is_instance_valid(peer) and peer in bodies)),
+						"every replacement retains only live collision exceptions")
 	_press_reset()
+	await _physics_frames()
+
+func _aim_at_fragment(body: RigidBody3D, point: Vector3, offset: Vector3) -> void:
+	var visual := body.get_node("Mesh") as MeshInstance3D
+	var viewpoint := visual.to_global(point + offset)
+	arena.player.global_position = Vector3(viewpoint.x, -0.055, viewpoint.z)
+	arena.player.velocity = Vector3.ZERO
+	arena.camera.position.y += viewpoint.y - arena.camera.global_position.y
+	arena._look_at(visual.to_global(point))
 	await _physics_frames()
 
 func _check_slash_after_shot(target: Dictionary, original_left_extent: float) -> void:

@@ -5,6 +5,7 @@ const SliceBones := preload("res://demo/fps_slice_bones.gd")
 const FRAGMENT_META := &"plane_slice_fragment"
 const SLICE_REMAINDER_META := &"plane_slice_remainder"
 const SEVERED_BONES_META := &"plane_slice_severed_bones"
+const COLLISION_PEERS_META := &"plane_slice_collision_peers"
 const REMAINDER_COLLISION_LAYER := 1 << 1
 const MAX_FRAGMENTS := 12
 const TILT_STEP := 5.0
@@ -129,7 +130,7 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 	var linear := Vector3.ZERO
 	var angular := Vector3.ZERO
 	var old_center := mesh_transform.origin
-	var previous_siblings: Array[PhysicsBody3D] = []
+	var previous_siblings: Array[RigidBody3D] = []
 	if not rigid_piece:
 		if target.ragdoll and collider is PhysicalBone3D:
 			linear = collider.linear_velocity
@@ -149,8 +150,7 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 		linear = old_body.linear_velocity
 		angular = old_body.angular_velocity
 		old_center = old_body.global_position
-		previous_siblings = old_body.get_collision_exceptions()
-		_remove_fragment(old_body)
+		previous_siblings = _remove_fragment(old_body)
 		active_fragments.erase(old_body)
 		active_fragments.append_array(fragments)
 	for i in fragments.size():
@@ -158,14 +158,9 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 		_attach_fragment(arena, fragment)
 		# Pieces start with coincident cap faces. Keep sibling contacts out of the solver.
 		for j in i:
-			var sibling := fragments[j]
-			fragment.add_collision_exception_with(sibling)
-			sibling.add_collision_exception_with(fragment)
+			_add_fragment_exception(fragment, fragments[j])
 		# Recut pieces can still touch an earlier cap while the debris separates.
-		for sibling in previous_siblings:
-			if is_instance_valid(sibling) and not sibling.is_queued_for_deletion():
-				fragment.add_collision_exception_with(sibling)
-				sibling.add_collision_exception_with(fragment)
+		_inherit_fragment_exceptions(fragment, previous_siblings)
 		var separation := normal if i < positive.size() else -normal
 		fragment.linear_velocity = linear + angular.cross(fragment.global_position - old_center) + separation * 0.35
 		fragment.angular_velocity = angular
@@ -231,19 +226,13 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 		linear = old_fragment.linear_velocity
 		angular = old_fragment.angular_velocity
 		center = old_fragment.global_position
-		var siblings := old_fragment.get_collision_exceptions()
-		_remove_fragment(old_fragment)
+		var siblings := _remove_fragment(old_fragment)
 		fragments.erase(old_fragment)
 		_attach_fragment(arena, retained)
 		_attach_fragment(arena, detached)
-		retained.add_collision_exception_with(detached)
-		detached.add_collision_exception_with(retained)
-		for sibling in siblings:
-			if is_instance_valid(sibling) and not sibling.is_queued_for_deletion():
-				retained.add_collision_exception_with(sibling)
-				detached.add_collision_exception_with(sibling)
-				sibling.add_collision_exception_with(retained)
-				sibling.add_collision_exception_with(detached)
+		_add_fragment_exception(retained, detached)
+		_inherit_fragment_exceptions(retained, siblings)
+		_inherit_fragment_exceptions(detached, siblings)
 		retained.linear_velocity = linear + angular.cross(retained.global_position - center)
 		retained.angular_velocity = angular
 		fragments.append(retained)
@@ -364,13 +353,14 @@ func _slice_fragment(arena: Node3D, target: Dictionary, index: int, body: RigidB
 	var linear := body.linear_velocity
 	var angular := body.angular_velocity
 	var old_center := body.global_position
-	_remove_fragment(body)
+	var siblings := _remove_fragment(body)
 	fragments.erase(body)
 	_attach_fragment(arena, positive)
 	_attach_fragment(arena, negative)
 	# Siblings share the cap at spawn. Keep those coincident faces out of the solver.
-	positive.add_collision_exception_with(negative)
-	negative.add_collision_exception_with(positive)
+	_add_fragment_exception(positive, negative)
+	_inherit_fragment_exceptions(positive, siblings)
+	_inherit_fragment_exceptions(negative, siblings)
 	positive.linear_velocity = linear + angular.cross(positive.global_position - old_center) + world_normal * 0.2
 	negative.linear_velocity = linear + angular.cross(negative.global_position - old_center) - world_normal * 0.2
 	positive.angular_velocity = angular
@@ -416,6 +406,8 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 	body.add_to_group("Dismembered Limb")
 	body.set_meta(&"target_index", index)
 	body.set_meta(FRAGMENT_META, true)
+	var collision_peers: Array[int] = []
+	body.set_meta(COLLISION_PEERS_META, collision_peers)
 
 	var visual := MeshInstance3D.new()
 	visual.name = "Mesh"
@@ -435,6 +427,7 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 
 func _attach_fragment(arena: Node3D, fragment: RigidBody3D) -> void:
 	var world_transform := fragment.transform
+	fragment.tree_exiting.connect(_unlink_fragment_exceptions.bind(fragment), CONNECT_ONE_SHOT)
 	arena.add_child(fragment, true)
 	fragment.global_transform = world_transform
 	fragment.reset_physics_interpolation()
@@ -457,10 +450,46 @@ func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: A
 	}
 	skeleton.hide()
 
-func _remove_fragment(fragment: RigidBody3D) -> void:
+func _add_fragment_exception(first: RigidBody3D, second: RigidBody3D) -> void:
+	var first_peers: Array[int] = first.get_meta(COLLISION_PEERS_META)
+	var second_id := second.get_instance_id()
+	if second_id in first_peers:
+		return
+	var second_peers: Array[int] = second.get_meta(COLLISION_PEERS_META)
+	first_peers.append(second_id)
+	second_peers.append(first.get_instance_id())
+	first.add_collision_exception_with(second)
+	second.add_collision_exception_with(first)
+
+func _inherit_fragment_exceptions(fragment: RigidBody3D, peers: Array[RigidBody3D]) -> void:
+	for peer in peers:
+		if is_instance_valid(peer) and not peer.is_queued_for_deletion():
+			_add_fragment_exception(fragment, peer)
+
+func _unlink_fragment_exceptions(fragment: RigidBody3D) -> Array[RigidBody3D]:
+	# Remove both directions while the physics bodies still exist.
+	var live_peers: Array[RigidBody3D] = []
+	var peer_ids: Array[int] = fragment.get_meta(COLLISION_PEERS_META)
+	var fragment_id := fragment.get_instance_id()
+	for peer_id in peer_ids:
+		var peer := instance_from_id(peer_id) as RigidBody3D
+		if peer == null:
+			continue
+		var reciprocal: Array[int] = peer.get_meta(COLLISION_PEERS_META)
+		reciprocal.erase(fragment_id)
+		peer.remove_collision_exception_with(fragment)
+		fragment.remove_collision_exception_with(peer)
+		if not peer.is_queued_for_deletion():
+			live_peers.append(peer)
+	peer_ids.clear()
+	return live_peers
+
+func _remove_fragment(fragment: RigidBody3D) -> Array[RigidBody3D]:
+	var peers := _unlink_fragment_exceptions(fragment)
 	fragment.collision_layer = 0
 	fragment.hide()
 	fragment.queue_free()
+	return peers
 
 func clear_fragments(target: Dictionary) -> void:
 	if not target.has("plane_slice"):

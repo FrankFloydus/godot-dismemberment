@@ -98,6 +98,11 @@ from a moved and rotated waist-slice fragment. The test checks the detached
 bounds and verifies that the other fragments remain. Blood-only shots
 keep the limb attached.
 
+A follow-up shell targets a sibling fragment after the original rigid body
+has been freed. Before the fix Godot reported a null body when resolving its
+old collision exception. The regression now checks that both shots sever and
+every surviving fragment lists only live collision peers.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer
