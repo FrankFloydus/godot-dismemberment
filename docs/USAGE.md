@@ -124,6 +124,16 @@ Build a local `Plane` from the resulting normal and point. The demo calls
 the same geometry API from its camera swipe, builds convex rigid bodies from
 the pieces, and publishes the swap after all colliders succeed.
 
+For a batch of standing targets, capture each pose on the main thread with
+`MeshPlaneSlice.capture_pose_job(mesh_instance, skeleton, local_plane)`.
+A valid capture returns a `MeshPlaneSliceJob`. Keep a reference to it and
+submit its `compute` method to `WorkerThreadPool`. Poll the task, reap it
+with `wait_for_task_completion` once complete, then call
+`job.finish(cap_material)` on the main thread to build the result meshes.
+Each job computes and publishes once. The job owns its captured pose,
+so a caller can discard it after the worker completes. Validate that the
+target is still current before replacing it with the finished meshes.
+
 `MeshPlaneSlice.sever_connected_piece(array_mesh, local_plane, limb_seed,
 cap_material)` uses a mesh-local point on the limb side of the plane to
 detach one connected region. It returns `detached_mesh` and `retained_mesh`.

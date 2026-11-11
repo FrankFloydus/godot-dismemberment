@@ -373,6 +373,18 @@ shortened the burst CPU time by 24.6% in this comparison. The added
 geometry and exterior stain passes increased measured draw calls from
 851 to 1,751 in the first window after the burst. Cutting every subject
 in one frame still causes a multi-second hitch on this setup.
+The staged benchmark on the same hardware passed 210 checks. It
+captured standing poses and published render meshes and colliders on the
+main thread across frames, and computed each geometry split on a worker.
+In the staged run all 20 slashes published together in 4.21 ms of CPU
+time. After the shotgun stage, all 100 fragments received their radial
+impulses together in 0.47 ms, with 10.4 ms until the next process frame.
+The corresponding synchronous run took 4.41 s until its next frame.
+The staged run took 5.05 s from request to blast and recorded 123 ms
+p95 and 321 ms maximum frame gaps during preparation. Off-tree body
+creation was the largest main-thread step. The same run recorded a
+497 ms frame gap before the request.
+
 The invocation is in [the demo guide](DEMO_README.md).
 
 ## Reproduce and evidence

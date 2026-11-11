@@ -1127,11 +1127,8 @@ Dictionary run_sever(std::vector<SurfaceInput> &input, const Plane &plane, doubl
     return result;
 }
 
-Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, double normal_length,
-        const Ref<Material> &cap_material, double epsilon, bool separate) {
-    SliceGeometry geometry(plane, normal_length, epsilon);
-    if (const char *error = geometry.run(input)) return failure(error);
-
+Dictionary publish_slice_result(const std::vector<SurfaceInput> &input, const SliceGeometry &geometry,
+        const Ref<Material> &cap_material, bool separate) {
     const Ref<Material> material = resolve_cap_material(cap_material);
     Dictionary result;
     if (separate) {
@@ -1165,6 +1162,23 @@ Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, doubl
     }
     result["loop_count"] = geometry.loop_count();
     return result;
+}
+
+Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, double normal_length,
+        const Ref<Material> &cap_material, double epsilon, bool separate) {
+    SliceGeometry geometry(plane, normal_length, epsilon);
+    if (const char *error = geometry.run(input)) return failure(error);
+    return publish_slice_result(input, geometry, cap_material, separate);
+}
+
+const char *read_pose_input(MeshInstance3D *mesh, Skeleton3D *skeleton, std::vector<SurfaceInput> &input) {
+    std::vector<MeshPoseSurface> posed;
+    if (!MeshPartition::snapshot_pose_surfaces(mesh, skeleton, posed)) return "The posed mesh could not be captured.";
+    input.resize(posed.size());
+    for (size_t surface = 0; surface < posed.size(); ++surface) {
+        if (!input[surface].read(posed[surface].arrays, posed[surface].material, posed[surface].name)) return INVALID_SURFACE;
+    }
+    return nullptr;
 }
 
 Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon, bool separate,
@@ -1224,6 +1238,39 @@ bool spans_solid_hull(const PackedVector3Array &points) {
 
 }
 
+struct MeshPlaneSliceJob::State {
+    std::vector<SurfaceInput> input;
+    SliceGeometry geometry;
+    const char *error = nullptr;
+
+    State(const Plane &plane, double normal_length, double epsilon) : geometry(plane, normal_length, epsilon) {}
+};
+
+MeshPlaneSliceJob::MeshPlaneSliceJob() = default;
+MeshPlaneSliceJob::~MeshPlaneSliceJob() = default;
+
+void MeshPlaneSliceJob::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("compute"), &MeshPlaneSliceJob::compute);
+    ClassDB::bind_method(D_METHOD("finish", "cap_material"), &MeshPlaneSliceJob::finish, DEFVAL(Ref<Material>()));
+}
+
+bool MeshPlaneSliceJob::compute() {
+    Phase expected = Phase::READY;
+    if (!phase.compare_exchange_strong(expected, Phase::RUNNING)) return false;
+    state->error = state->geometry.run(state->input);
+    const bool valid = state->error == nullptr;
+    phase.store(Phase::COMPLETE);
+    return valid;
+}
+
+Dictionary MeshPlaneSliceJob::finish(const Ref<Material> &cap_material) {
+    Phase expected = Phase::COMPLETE;
+    if (!phase.compare_exchange_strong(expected, Phase::FINISHED)) return failure("The slice job has no pending result.");
+    const auto completed = std::move(state);
+    if (completed->error) return failure(completed->error);
+    return publish_slice_result(completed->input, completed->geometry, cap_material, true);
+}
+
 void MeshPlaneSlice::_bind_methods() {
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_mesh", "mesh", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_mesh, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
@@ -1234,6 +1281,8 @@ void MeshPlaneSlice::_bind_methods() {
             &MeshPlaneSlice::sever_connected_piece, DEFVAL(Ref<Material>()), DEFVAL(0.000001), DEFVAL(0.15));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_pose", "mesh", "skeleton", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_pose, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
+    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("capture_pose_job", "mesh", "skeleton", "plane", "epsilon"),
+            &MeshPlaneSlice::capture_pose_job, DEFVAL(0.000001));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("reduce_collision_hull", "points"),
             &MeshPlaneSlice::reduce_collision_hull);
 }
@@ -1259,15 +1308,21 @@ Dictionary MeshPlaneSlice::slice_pose(MeshInstance3D *mesh, Skeleton3D *skeleton
     const double normal_length = valid_plane_length(plane, epsilon);
     if (normal_length == 0) return failure(INVALID_PLANE);
     std::vector<SurfaceInput> input;
-    {
-        std::vector<MeshPoseSurface> posed;
-        if (!MeshPartition::snapshot_pose_surfaces(mesh, skeleton, posed)) return failure("The posed mesh could not be captured.");
-        input.resize(posed.size());
-        for (size_t surface = 0; surface < posed.size(); ++surface) {
-            if (!input[surface].read(posed[surface].arrays, posed[surface].material, posed[surface].name)) return failure(INVALID_SURFACE);
-        }
-    }
+    if (const char *error = read_pose_input(mesh, skeleton, input)) return failure(error);
     return run_slice(input, plane, normal_length, cap_material, epsilon, true);
+}
+
+Ref<MeshPlaneSliceJob> MeshPlaneSlice::capture_pose_job(MeshInstance3D *mesh, Skeleton3D *skeleton, const Plane &plane,
+        double epsilon) {
+    const double normal_length = valid_plane_length(plane, epsilon);
+    if (normal_length == 0) return {};
+    auto state = std::make_unique<MeshPlaneSliceJob::State>(plane, normal_length, epsilon);
+    if (read_pose_input(mesh, skeleton, state->input)) return {};
+    Ref<MeshPlaneSliceJob> job;
+    job.instantiate();
+    job->state = std::move(state);
+    job->phase.store(MeshPlaneSliceJob::Phase::READY);
+    return job;
 }
 
 PackedVector3Array MeshPlaneSlice::reduce_collision_hull(const PackedVector3Array &points) {

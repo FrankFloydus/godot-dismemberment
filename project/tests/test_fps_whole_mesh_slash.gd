@@ -249,7 +249,50 @@ func _run() -> void:
 		await _physics_frames()
 	await _check_shot_severs_slice_limb(target)
 	await _check_slash_after_shot(target, source_mesh.get_aabb().end.x)
+	await _check_staged_invalidation(target)
 	await _finish()
+
+func _check_staged_invalidation(target: Dictionary) -> void:
+	_press_reset()
+	arena._jump_station(0)
+	await _aim_level(target.actor.global_position, WAIST_HEIGHT)
+	var hit: Dictionary = arena._raycast_camera()
+	var plane := Plane(Vector3.UP, WAIST_HEIGHT)
+	var stage: Dictionary = arena.plane_slicing.stage_whole_slash(hit, arena.targets, plane)
+	if not _expect(stage.get("ok", false), "an intact subject accepts a staged slash"):
+		return
+	while not arena.plane_slicing.is_whole_slash_ready(stage):
+		await process_frame
+	var collected: Dictionary = arena.plane_slicing.collect_whole_slash(stage, arena.targets)
+	if not _expect(collected.get("ok", false), "a staged slash collects its worker result"):
+		arena.plane_slicing.discard_whole_slash(stage)
+		return
+	_press_reset()
+	var rejected: Dictionary = arena.plane_slicing.prepare_whole_slash(stage, arena.targets)
+	_expect(not rejected.get("ok", false) and not target.has("plane_slice")
+		and get_nodes_in_group("Dismembered Limb").is_empty(),
+		"reset invalidates collected geometry before fragment creation")
+
+	await _physics_frames()
+	hit = arena._raycast_camera()
+	stage = arena.plane_slicing.stage_whole_slash(hit, arena.targets, plane)
+	if not _expect(stage.get("ok", false), "a restored subject can stage another slash"):
+		return
+	while not arena.plane_slicing.is_whole_slash_ready(stage):
+		await process_frame
+	var prepared: Dictionary = arena.plane_slicing.prepare_whole_slash(stage, arena.targets)
+	if not _expect(prepared.get("ok", false) and stage.has("fragments"), "a staged slash prepares off-tree bodies"):
+		arena.plane_slicing.discard_whole_slash(stage)
+		return
+	var actor: Node3D = target.actor
+	var origin := actor.position
+	actor.position += Vector3(0.06, 0.0, 0.0)
+	var pending: Array[Dictionary] = [stage]
+	var result: Array = arena.plane_slicing.publish_whole_slashes(arena, pending, arena.targets)
+	actor.position = origin
+	_expect(not result[0].get("ok", false) and not target.has("plane_slice")
+		and get_nodes_in_group("Dismembered Limb").is_empty(),
+		"a changed transform discards prepared bodies without hiding the subject")
 
 func _check_shot_severs_slice_limb(target: Dictionary) -> void:
 	arena._jump_station(0)

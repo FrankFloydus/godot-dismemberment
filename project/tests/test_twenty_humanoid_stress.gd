@@ -1,12 +1,14 @@
 extends SceneTree
 ## Same-frame slash, shotgun sever, and radial blast on 20 authored rigs.
 ## Run this scene-tree script with the renderer, Dummy audio and VSync disabled.
+## Pass --staged to prepare slash jobs across frames and publish their bodies together.
 
 const DEMO := "res://demo/demo.tscn"
 const TARGET_COUNT := 20
 const WAIST_HEIGHT := 1.04
 const BLAST_SPEED := 3.2
 const BLAST_LIFT := 0.85
+const STAGE_TIMEOUT_USEC := 30000000
 const FRAGMENT_GROUP := &"Dismembered Limb"
 const INTERIOR_GROUP := &"slice_interior_visual"
 const STAINS_META := &"plane_slice_stains"
@@ -172,6 +174,10 @@ func _run() -> void:
 		return
 
 	var idle := await _measure_frames(0.75)
+	if "--staged" in OS.get_cmdline_user_args():
+		await _run_staged(idle)
+		return
+
 	var started_frame := Engine.get_process_frames()
 	var started_physics_frame := Engine.get_physics_frames()
 	var slice_durations: Array[float] = []
@@ -266,6 +272,208 @@ func _run() -> void:
 		"cpu": OS.get_processor_name(), "window": str(root.size),
 		"physics_ticks": Engine.physics_ticks_per_second,
 	}))
+	await _reset_and_finish(verify_interiors)
+
+
+func _next_measured_frame(samples: Array[float], previous: int) -> int:
+	await process_frame
+	var now := Time.get_ticks_usec()
+	samples.append((now - previous) * 0.001)
+	return now
+
+
+func _hold_fragments(fragments: Array, velocities: Dictionary) -> void:
+	for body: RigidBody3D in fragments:
+		var id := body.get_instance_id()
+		if not velocities.has(id):
+			velocities[id] = [body.linear_velocity, body.angular_velocity]
+			body.freeze = true
+
+
+func _run_staged(idle: Dictionary) -> void:
+	var request_started := Time.get_ticks_usec()
+	var requests: Array[Dictionary] = []
+	for index in TARGET_COUNT:
+		var target: Dictionary = arena.targets[index]
+		var source := target.mesh as MeshInstance3D
+		var hips := _hitbox(target, &"Hips")
+		var left_arm := _hitbox(target, &"LeftArm")
+		if not _expect(hips != null and left_arm != null and source != null,
+				"Target %d is missing its real rig and hit regions." % index):
+			await _finish()
+			return
+		var waist := source.to_global(Vector3(0.0, WAIST_HEIGHT, 0.0)).y
+		requests.append({
+			"hit": {"collider": hips, "position": Vector3(hips.global_position.x, waist, hips.global_position.z)},
+			"plane": Plane(Vector3.UP, waist),
+			"center": source.to_global(Vector3(0.0, WAIST_HEIGHT, 0.0)),
+			"transform": source.global_transform,
+			"arm_contact": source.to_local(left_arm.global_position),
+		})
+	var request_cpu_ms := (Time.get_ticks_usec() - request_started) * 0.001
+	var prepare_gaps: Array[float] = []
+	var last_frame := request_started
+	var stages: Array[Dictionary] = []
+	var capture_durations: Array[float] = []
+	var collection_durations: Array[float] = []
+	var body_durations: Array[float] = []
+	for request in requests:
+		var capture_started := Time.get_ticks_usec()
+		var stage: Dictionary = arena.plane_slicing.stage_whole_slash(request.hit, arena.targets, request.plane)
+		capture_durations.append((Time.get_ticks_usec() - capture_started) * 0.001)
+		if not _expect(stage.get("ok", false), "Could not submit slash. %s" % stage.get("error", "")):
+			await _discard_staged(stages)
+			return
+		stages.append(stage)
+		last_frame = await _next_measured_frame(prepare_gaps, last_frame)
+
+	for index in stages.size():
+		var stage := stages[index]
+		while not arena.plane_slicing.is_whole_slash_ready(stage):
+			if not _expect(Time.get_ticks_usec() - request_started < STAGE_TIMEOUT_USEC,
+					"Staged slash %d timed out." % index):
+				await _discard_staged(stages)
+				return
+			last_frame = await _next_measured_frame(prepare_gaps, last_frame)
+		var collection_started := Time.get_ticks_usec()
+		var collected: Dictionary = arena.plane_slicing.collect_whole_slash(stage, arena.targets)
+		collection_durations.append((Time.get_ticks_usec() - collection_started) * 0.001)
+		if not _expect(collected.get("ok", false), "Could not collect slash. %s" % collected.get("error", "")):
+			await _discard_staged(stages)
+			return
+		stages[index] = collected
+		last_frame = await _next_measured_frame(prepare_gaps, last_frame)
+
+		var body_started := Time.get_ticks_usec()
+		var prepared: Dictionary = arena.plane_slicing.prepare_whole_slash(collected, arena.targets)
+		body_durations.append((Time.get_ticks_usec() - body_started) * 0.001)
+		if not _expect(prepared.get("ok", false), "Could not prepare slash. %s" % prepared.get("error", "")):
+			await _discard_staged(stages)
+			return
+		stages[index] = prepared
+		last_frame = await _next_measured_frame(prepare_gaps, last_frame)
+
+	_expect(get_nodes_in_group(FRAGMENT_GROUP).is_empty()
+		and arena.targets.all(func(target: Dictionary) -> bool: return target.mesh.is_visible_in_tree()),
+		"Preparing the batch must leave fragments off-tree and every source visible.")
+	var publish_frame := Engine.get_process_frames()
+	var publish_physics_frame := Engine.get_physics_frames()
+	var publish_started := Time.get_ticks_usec()
+	var slashes: Array[Dictionary] = arena.plane_slicing.publish_whole_slashes(arena, stages, arena.targets)
+	var publish_cpu_ms := (Time.get_ticks_usec() - publish_started) * 0.001
+	var same_publish_frame := Engine.get_process_frames() == publish_frame \
+		and Engine.get_physics_frames() == publish_physics_frame
+	_expect(same_publish_frame and slashes.size() == TARGET_COUNT,
+		"All prepared targets must publish before the next process frame or physics step.")
+	var velocities := {}
+	var expected_fragments := 0
+	var sliced := 0
+	for slash in slashes:
+		if not _expect(slash.get("ok", false) and slash.get("mode") == &"whole",
+				"Could not publish slash. %s" % slash.get("error", "")):
+			continue
+		sliced += 1
+		expected_fragments += slash.fragments.size()
+		_hold_fragments(slash.fragments, velocities)
+	_expect(sliced == TARGET_COUNT, "Every humanoid must produce a whole-body slash.")
+	var publish_elapsed_ms := (Time.get_ticks_usec() - request_started) * 0.001
+	last_frame = await _next_measured_frame(prepare_gaps, last_frame)
+
+	var severed_limbs: Array[RigidBody3D] = []
+	var sever_durations: Array[float] = []
+	var sever_gaps: Array[float] = []
+	for slash in slashes:
+		if not slash.get("ok", false):
+			continue
+		var index: int = slash.target
+		var request := requests[index]
+		var upper := _upper_fragment(slash, request.transform, request.center.y)
+		if not _expect(upper != null, "Target %d has no cut upper torso." % index):
+			continue
+		var visual := upper.get_node("Mesh") as MeshInstance3D
+		var sever_started := Time.get_ticks_usec()
+		var shot: Dictionary = arena._apply_pellet_hit({
+			"collider": upper,
+			"position": visual.to_global(request.arm_contact),
+			"direction": -visual.global_basis.z.normalized(),
+		}, false, false, {}, {})
+		sever_durations.append((Time.get_ticks_usec() - sever_started) * 0.001)
+		if _expect(shot.get("severed", false) and shot.get("bone") == &"LeftArm",
+				"Target %d did not sever at the intended pellet contact. %s" % [index, shot]):
+			var limb := shot.get("limb") as RigidBody3D
+			if _expect(limb != null and limb.linear_velocity.length() >= arena.dismemberment_impulse,
+					"Target %d did not launch its detached limb." % index):
+				severed_limbs.append(limb)
+			expected_fragments += 1
+		_hold_fragments(arena.targets[index].plane_slice.fragments, velocities)
+		last_frame = await _next_measured_frame(sever_gaps, last_frame)
+	_expect(severed_limbs.size() == TARGET_COUNT, "Every sliced humanoid must sever and launch an arm.")
+
+	var release_frame := Engine.get_process_frames()
+	var release_physics_frame := Engine.get_physics_frames()
+	var release_started := Time.get_ticks_usec()
+	var blasted := 0
+	var blasted_bodies := 0
+	for index in requests.size():
+		var fragments: Array = arena.targets[index].get("plane_slice", {}).get("fragments", [])
+		if fragments.is_empty():
+			continue
+		for body: RigidBody3D in fragments:
+			var velocity: Array = velocities[body.get_instance_id()]
+			body.freeze = false
+			body.linear_velocity = velocity[0]
+			body.angular_velocity = velocity[1]
+		blasted_bodies += _blast(fragments, requests[index].center)
+		blasted += 1
+
+	var release_cpu_ms := (Time.get_ticks_usec() - release_started) * 0.001
+	var same_release_frame := Engine.get_process_frames() == release_frame \
+		and Engine.get_physics_frames() == release_physics_frame
+	_expect(same_release_frame and blasted == TARGET_COUNT and blasted_bodies == expected_fragments,
+		"Every fragment must be released and blasted before the next physics step.")
+	await process_frame
+	var release_to_next_frame_ms := (Time.get_ticks_usec() - release_started) * 0.001
+	var live_fragments := 0
+	for body in get_nodes_in_group(FRAGMENT_GROUP):
+		if body is RigidBody3D and not body.is_queued_for_deletion() and not body.freeze:
+			live_fragments += 1
+	_expect(live_fragments == expected_fragments,
+		"Expected %d live rigid fragments, found %d." % [expected_fragments, live_fragments])
+
+	var aftermath := await _measure_frames(0.75)
+	await create_timer(0.25).timeout
+	var settle := await _measure_frames(0.75)
+	var verify_interiors := "--verify-interiors" in OS.get_cmdline_user_args()
+	var interior_result := _validate_interiors(severed_limbs) if verify_interiors else {}
+	print("TWENTY_HUMANOID_STAGED_RESULT=", JSON.stringify({
+		"targets": TARGET_COUNT, "sliced": sliced, "severed": severed_limbs.size(),
+		"blasted": blasted, "blasted_bodies": blasted_bodies, "live_fragments": live_fragments,
+		"same_publish_frame": same_publish_frame, "same_release_frame": same_release_frame,
+		"interior_verification": interior_result,
+		"request_cpu_ms": request_cpu_ms, "publish_cpu_ms": publish_cpu_ms, "release_cpu_ms": release_cpu_ms,
+		"request_to_publication_ms": publish_elapsed_ms,
+		"request_to_release_ms": (release_started - request_started) * 0.001,
+		"release_to_next_frame_ms": release_to_next_frame_ms,
+		"slash_preparation_frame_gaps": _summarize(prepare_gaps),
+		"shotgun_preparation_frame_gaps": _summarize(sever_gaps),
+		"pending_frame_gaps": _summarize(prepare_gaps + sever_gaps),
+		"capture": _summarize(capture_durations), "collect": _summarize(collection_durations),
+		"prepare_bodies": _summarize(body_durations), "sever": _summarize(sever_durations),
+		"idle": idle, "aftermath": aftermath, "settle": settle,
+		"display": DisplayServer.get_name(), "gpu": RenderingServer.get_video_adapter_name(),
+		"cpu": OS.get_processor_name(), "window": str(root.size),
+		"physics_ticks": Engine.physics_ticks_per_second,
+	}))
+	await _reset_and_finish(verify_interiors)
+
+
+func _discard_staged(stages: Array[Dictionary]) -> void:
+	for stage in stages:
+		arena.plane_slicing.discard_whole_slash(stage)
+	await _finish()
+
+
+func _reset_and_finish(verify_interiors: bool) -> void:
 	for index in TARGET_COUNT:
 		arena._reset_target(index)
 	await process_frame

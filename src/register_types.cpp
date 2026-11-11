@@ -23,6 +23,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	}
 	GDREGISTER_CLASS(LimbMap);
 	GDREGISTER_CLASS(MeshPartition);
+	GDREGISTER_CLASS(MeshPlaneSliceJob);
 	GDREGISTER_CLASS(MeshPlaneSlice);
 	GDREGISTER_CLASS(DismemberedAnimInstance);
 	GDREGISTER_CLASS(DismemberedLimb);

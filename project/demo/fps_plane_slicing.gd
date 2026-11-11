@@ -8,6 +8,7 @@ const FRAGMENT_META := &"plane_slice_fragment"
 const SLICE_REMAINDER_META := &"plane_slice_remainder"
 const SEVERED_BONES_META := &"plane_slice_severed_bones"
 const COLLISION_PEERS_META := &"plane_slice_collision_peers"
+const STAGED_GENERATION := &"plane_slice_generation"
 const REMAINDER_COLLISION_LAYER := 1 << 1
 const MAX_FRAGMENTS := 12
 const HULL_POINT_BUDGET := 98
@@ -86,13 +87,9 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 			return _failure("Swipe across the remaining pieces to slice them again.")
 
 	var mesh_transform := source.global_transform
-	var local_normal := mesh_transform.basis.transposed() * world_plane.normal
-	var normal_length := local_normal.length()
-	if not mesh_transform.is_finite() or mesh_transform.basis.determinant() == 0.0 \
-			or not is_finite(normal_length) or normal_length == 0.0:
+	var local_plane := _mesh_local_plane(mesh_transform, world_plane)
+	if local_plane.normal == Vector3.ZERO:
 		return _failure("The slash did not define a valid cut in mesh space.")
-	var local_plane := Plane(local_normal / normal_length,
-		(world_plane.d - world_plane.normal.dot(mesh_transform.origin)) / normal_length)
 
 	var rigid_piece := old_body != null or hits_remainder
 	var needs_baked_pose: bool = not rigid_piece and not target.missing.is_empty()
@@ -117,21 +114,12 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 	if remaining_count + positive.size() + negative.size() > MAX_FRAGMENTS:
 		return _failure("Fragment limit reached. Press R to restore the subject.")
 
-	var fragments: Array[RigidBody3D] = []
-	var positive_visuals: Array[MeshInstance3D] = []
-	var negative_visuals: Array[MeshInstance3D] = []
-	for piece: ArrayMesh in positive + negative:
-		var fragment := _make_fragment(piece, mesh_transform, target.component, index, source)
-		if fragment == null:
-			for prepared in fragments:
-				prepared.free()
-			return _failure("A slash fragment could not make a solid collider.")
-		var visuals := positive_visuals if fragments.size() < positive.size() else negative_visuals
-		visuals.append(fragment.get_node("Mesh") as MeshInstance3D)
-		fragments.append(fragment)
 	var skeleton: Skeleton3D = null if rigid_piece else target.skeleton
 	var missing_bones := PackedStringArray() if rigid_piece else _missing_roots(target)
-	_decorate_cut(source, skeleton, local_plane, positive_visuals, negative_visuals, missing_bones)
+	var fragments := _prepare_slash_fragments(positive, negative, mesh_transform, target, index, source,
+		skeleton, local_plane, missing_bones)
+	if fragments.is_empty():
+		return _failure("A slash fragment could not make a solid collider.")
 
 	# Do not replace the visible mesh or its collision until every body is ready.
 	var normal := world_plane.normal.normalized()
@@ -161,6 +149,204 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 		previous_siblings = _remove_fragment(old_body)
 		active_fragments.erase(old_body)
 		active_fragments.append_array(fragments)
+	_launch_slash_fragments(arena, fragments, positive.size(), normal, linear, angular, old_center, previous_siblings)
+	return {"ok": true, "mode": &"fragment" if rigid_piece else &"whole", "target": index, "point": point,
+		"loop_count": pieces.loop_count, "remainder": remainder, "fragment": fragments[0], "fragments": fragments}
+
+## Capture one intact standing target on the main thread and submit its geometry.
+## A staged cut owns its worker and off-tree bodies until published or discarded.
+func stage_whole_slash(hit: Dictionary, targets: Array[Dictionary], world_plane: Plane) -> Dictionary:
+	if not ClassDB.class_has_method(&"MeshPlaneSlice", &"capture_pose_job"):
+		return _failure("Build the experimental native slicing extension.")
+	var collider := hit.get("collider") as Area3D
+	var index := int(collider.get_meta(&"target_index", -1)) if collider != null else -1
+	if index < 0 or index >= targets.size() or not collider.has_meta(&"bone"):
+		return _failure("A staged slash needs an intact standing subject.")
+	var target := targets[index]
+	if target.ragdoll or target.has("plane_slice") or not target.missing.is_empty():
+		return _failure("A staged slash needs an intact standing subject.")
+	var point: Vector3 = hit.get("position", Vector3.INF)
+	if not point.is_finite() or not world_plane.normal.is_finite() or not is_finite(world_plane.d):
+		return _failure("The slash needs a finite plane and contact point.")
+	var source: MeshInstance3D = target.mesh
+	var skeleton: Skeleton3D = target.skeleton
+	var transform := source.global_transform
+	var local_plane := _mesh_local_plane(transform, world_plane)
+	if local_plane.normal == Vector3.ZERO:
+		return _failure("The slash did not define a valid cut in mesh space.")
+	var job := ClassDB.class_call_static(&"MeshPlaneSlice", &"capture_pose_job", source, skeleton,
+		local_plane, EPSILON) as RefCounted
+	if job == null:
+		return _failure("The posed mesh could not be captured.")
+	var task := WorkerThreadPool.add_task(Callable(job, &"compute"), false, "Prepare whole-body slash")
+	return {"ok": true, "target": index, "source": source, "mesh": source.mesh, "skeleton": skeleton,
+		"pose": SliceBones._capture_poses(source, skeleton), "transform": transform, "point": point,
+		"normal": world_plane.normal.normalized(), "plane": local_plane, "cap_material": cap_material,
+		"generation": target.get(STAGED_GENERATION, 0), "task": task, "job": job}
+
+
+func is_whole_slash_ready(stage: Dictionary) -> bool:
+	var task := int(stage.get("task", -1))
+	return task < 0 or WorkerThreadPool.is_task_completed(task)
+
+
+## Publish the geometry worker's render resources for one ready stage.
+## The caller can yield before building collision bodies for these meshes.
+func collect_whole_slash(stage: Dictionary, targets: Array[Dictionary]) -> Dictionary:
+	if not stage.get("ok", false) or stage.has("pieces") or stage.has("fragments"):
+		return stage
+	if not is_whole_slash_ready(stage):
+		return _failure("The staged slash is still preparing.")
+	var task := int(stage.get("task", -1))
+	if task < 0:
+		return _failure("The staged slash has already been consumed.")
+	WorkerThreadPool.wait_for_task_completion(task)
+	stage.erase("task")
+	var job: RefCounted = stage.job
+	stage.erase("job")
+	if not _staged_target_matches(stage, targets):
+		return _reject_staged_slash(stage, "The subject changed while the slash was preparing.")
+	var pieces: Dictionary = job.call(&"finish", stage.cap_material)
+	var positive: Array = pieces.get("positive_pieces", [])
+	var negative: Array = pieces.get("negative_pieces", [])
+	if positive.is_empty() or negative.is_empty():
+		return _reject_staged_slash(stage, str(pieces.get("error", "The slash did not produce a closed cut.")))
+	if positive.size() + negative.size() > MAX_FRAGMENTS:
+		return _reject_staged_slash(stage, "Fragment limit reached. Press R to restore the subject.")
+	stage["pieces"] = pieces
+	return stage
+
+
+## Build one stage's off-tree collision bodies and visuals. The original
+## subject remains active until publication.
+func prepare_whole_slash(stage: Dictionary, targets: Array[Dictionary]) -> Dictionary:
+	if not stage.get("ok", false) or stage.has("fragments"):
+		return stage
+	if stage.has("pieces"):
+		if not _staged_target_matches(stage, targets):
+			return _reject_staged_slash(stage, "The subject changed while the slash was preparing.")
+	else:
+		var collected := collect_whole_slash(stage, targets)
+		if not collected.get("ok", false):
+			return collected
+	var pieces: Dictionary = stage.pieces
+	stage.erase("pieces")
+	var positive: Array = pieces.positive_pieces
+	var negative: Array = pieces.negative_pieces
+	var target := targets[int(stage.target)]
+	var fragments := _prepare_slash_fragments(positive, negative, stage.transform, target, stage.target,
+		stage.source, stage.skeleton, stage.plane, PackedStringArray())
+	if fragments.is_empty():
+		return _reject_staged_slash(stage, "A slash fragment could not make a solid collider.")
+	stage["bones"] = SliceBones.capture(target)
+	stage["fragments"] = fragments
+	stage["positive_count"] = positive.size()
+	stage["loop_count"] = pieces.loop_count
+	return stage
+
+
+## Publish all prepared subjects in this callback, without yielding a frame or
+## physics step between them. Each result matches slash_hit's whole-cut shape.
+func publish_whole_slashes(arena: Node3D, stages: Array,
+		targets: Array[Dictionary]) -> Array[Dictionary]:
+	var results: Array[Dictionary] = []
+	for stage: Dictionary in stages:
+		if not stage.get("ok", false):
+			results.append(stage)
+			continue
+		if not stage.has("fragments") or not _staged_target_matches(stage, targets):
+			results.append(_reject_staged_slash(stage, "The staged subject or its prepared cut is unavailable."))
+			continue
+		var index := int(stage.target)
+		var fragments: Array[RigidBody3D] = stage.fragments
+		_suspend_source(targets[index], null, fragments.duplicate(), stage.bones)
+		_launch_slash_fragments(arena, fragments, stage.positive_count, stage.normal)
+		results.append({"ok": true, "mode": &"whole", "target": index, "point": stage.point,
+			"loop_count": stage.loop_count, "remainder": null, "fragment": fragments[0], "fragments": fragments})
+		stage.clear()
+	return results
+
+
+func discard_whole_slash(stage: Dictionary) -> void:
+	var task := int(stage.get("task", -1))
+	if task >= 0:
+		_reap_discarded_slash(task, stage.job)
+	for fragment in stage.get("fragments", []):
+		if is_instance_valid(fragment):
+			fragment.free()
+	stage.clear()
+
+
+func _reap_discarded_slash(task: int, _job: RefCounted) -> void:
+	# Keep the job alive while its callable may still be running. Cancellation
+	# must not block the scene on a worker.
+	var tree := Engine.get_main_loop() as SceneTree
+	while tree != null and not WorkerThreadPool.is_task_completed(task):
+		await tree.process_frame
+	WorkerThreadPool.wait_for_task_completion(task)
+
+
+func _reject_staged_slash(stage: Dictionary, error: String) -> Dictionary:
+	discard_whole_slash(stage)
+	stage.merge(_failure(error))
+	return stage
+
+
+func _staged_target_matches(stage: Dictionary, targets: Array[Dictionary]) -> bool:
+	var index := int(stage.target)
+	if index < 0 or index >= targets.size() or not is_instance_valid(stage.source) \
+			or not is_instance_valid(stage.skeleton) or stage.cap_material != cap_material:
+		return false
+	var target := targets[index]
+	var source: MeshInstance3D = stage.source
+	var skeleton: Skeleton3D = stage.skeleton
+	if target.mesh != source or target.skeleton != skeleton or target.ragdoll \
+			or target.has("plane_slice") or not target.missing.is_empty() \
+			or target.get(STAGED_GENERATION, 0) != stage.generation \
+			or not source.is_inside_tree() or source.is_queued_for_deletion() or source.mesh != stage.mesh \
+			or not source.global_transform.is_equal_approx(stage.transform):
+		return false
+	var poses := SliceBones._capture_poses(source, skeleton)
+	var previous: Array[Transform3D] = stage.pose
+	if poses.size() != previous.size():
+		return false
+	for bone in poses.size():
+		if not poses[bone].is_equal_approx(previous[bone]):
+			return false
+	return true
+
+
+func _mesh_local_plane(transform: Transform3D, world_plane: Plane) -> Plane:
+	var local_normal := transform.basis.transposed() * world_plane.normal
+	var length := local_normal.length()
+	if not transform.is_finite() or transform.basis.determinant() == 0.0 \
+			or not is_finite(length) or length == 0.0:
+		return Plane()
+	return Plane(local_normal / length, (world_plane.d - world_plane.normal.dot(transform.origin)) / length)
+
+
+func _prepare_slash_fragments(positive: Array, negative: Array, mesh_transform: Transform3D,
+		target: Dictionary, index: int, source: MeshInstance3D, skeleton: Skeleton3D, plane: Plane,
+		missing_bones: PackedStringArray) -> Array[RigidBody3D]:
+	var fragments: Array[RigidBody3D] = []
+	var positive_visuals: Array[MeshInstance3D] = []
+	var negative_visuals: Array[MeshInstance3D] = []
+	for piece: ArrayMesh in positive + negative:
+		var fragment := _make_fragment(piece, mesh_transform, target.component, index, source)
+		if fragment == null:
+			for prepared in fragments:
+				prepared.free()
+			return []
+		var visuals := positive_visuals if fragments.size() < positive.size() else negative_visuals
+		visuals.append(fragment.get_node("Mesh") as MeshInstance3D)
+		fragments.append(fragment)
+	_decorate_cut(source, skeleton, plane, positive_visuals, negative_visuals, missing_bones)
+	return fragments
+
+
+func _launch_slash_fragments(arena: Node3D, fragments: Array[RigidBody3D], positive_count: int,
+		normal: Vector3, linear := Vector3.ZERO, angular := Vector3.ZERO, old_center := Vector3.ZERO,
+		previous_siblings: Array[RigidBody3D] = []) -> void:
 	for i in fragments.size():
 		var fragment := fragments[i]
 		_attach_fragment(arena, fragment)
@@ -169,11 +355,10 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 			_add_fragment_exception(fragment, fragments[j])
 		# Recut pieces can still touch an earlier cap while the debris separates.
 		_inherit_fragment_exceptions(fragment, previous_siblings)
-		var separation := normal if i < positive.size() else -normal
+		var separation := normal if i < positive_count else -normal
 		fragment.linear_velocity = linear + angular.cross(fragment.global_position - old_center) + separation * 0.35
 		fragment.angular_velocity = angular
-	return {"ok": true, "mode": &"fragment" if rigid_piece else &"whole", "target": index, "point": point,
-		"loop_count": pieces.loop_count, "remainder": remainder, "fragment": fragments[0], "fragments": fragments}
+
 
 func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, impulse: Vector3) -> Dictionary:
 	if not target.has("plane_slice") or not ClassDB.class_has_method(&"MeshPlaneSlice", &"sever_connected_piece"):
@@ -484,9 +669,10 @@ func _attach_fragment(arena: Node3D, fragment: RigidBody3D) -> void:
 	fragment.global_transform = world_transform
 	fragment.reset_physics_interpolation()
 
-func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: Array) -> void:
+func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: Array,
+		prepared_bones: Dictionary = {}) -> void:
 	var skeleton: Skeleton3D = target.skeleton
-	var bones := SliceBones.capture(target)
+	var bones := SliceBones.capture(target) if prepared_bones.is_empty() else prepared_bones
 	if target.ragdoll:
 		skeleton.physical_bones_stop_simulation()
 	var physics_layers := {}
@@ -553,6 +739,7 @@ func clear_fragments(target: Dictionary) -> void:
 	fragments.clear()
 
 func restore(target: Dictionary) -> void:
+	target[STAGED_GENERATION] = int(target.get(STAGED_GENERATION, 0)) + 1
 	if not target.has("plane_slice"):
 		return
 	clear_fragments(target)

@@ -76,6 +76,13 @@ The test applies a torso slash, a shotgun limb sever, and a radial blast to
 each subject in one process frame. It reports burst CPU time and subsequent
 frame times separately, then checks that reset removes the fragments.
 
+Add `--staged` after `--verify-interiors` to exercise the batch path.
+It captures each standing pose on the main thread, computes the geometry
+on workers, and builds render resources and bodies across frames. The
+prepared slashes appear together. The test then stages the shotgun
+severs and releases all the blast impulses in one physics step.
+The original benchmark measures the fully synchronous path.
+
 Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
 **FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,
 forward and upward dismemberment impulse, detached-limb impulse, shot timing,

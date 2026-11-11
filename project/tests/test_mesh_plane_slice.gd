@@ -15,6 +15,7 @@ func _run() -> void:
 	var recut_cap := StandardMaterial3D.new()
 	var cube := _make_boxes([Vector3.ZERO], exterior)
 	_check_default_cap(cube)
+	_check_worker_snapshot(cube, cap)
 	var original_arrays := cube.surface_get_arrays(0)
 	var offset := _check_cut(cube, Plane(Vector3.RIGHT, 0.35), cap, [exterior],
 		1, 4.0, 2.6, 5.4, "offset cube with collinear seam points")
@@ -90,6 +91,37 @@ func _check_default_cap(cube: ArrayMesh) -> void:
 			matches = (matches and mesh.surface_get_name(cap) == "Slice Cap"
 				and mesh.surface_get_material(cap) == bundled)
 		_check(matches, "both cut outputs use the bundled material with no override")
+
+func _check_worker_snapshot(cube: ArrayMesh, material: Material) -> void:
+	var instance := MeshInstance3D.new()
+	instance.mesh = cube
+	var plane := Plane(Vector3.RIGHT, 0.35)
+	var synchronous := MeshPlaneSlice.slice_pose(instance, null, plane, material)
+	var job := MeshPlaneSlice.capture_pose_job(instance, null, plane)
+	instance.free()
+	if job == null:
+		_check(false, "the worker captures a valid independent pose job")
+		return
+	_check(job.finish(material).has("error"), "a job cannot publish before its computation")
+	var task := WorkerThreadPool.add_task(job.compute)
+	WorkerThreadPool.wait_for_task_completion(task)
+	var result := job.finish(material)
+	_check(result.get("loop_count") == synchronous.get("loop_count"), "worker and synchronous cut report the same contours")
+	for side: String in ["positive_pieces", "negative_pieces"]:
+		var expected: Array = synchronous[side]
+		var actual: Array = result.get(side, [])
+		if actual.size() != expected.size():
+			_check(false, "worker and synchronous cut produce the same piece count")
+			continue
+		for index in expected.size():
+			var worker_mesh: ArrayMesh = actual[index]
+			var synchronous_mesh: ArrayMesh = expected[index]
+			var same := worker_mesh.get_surface_count() == synchronous_mesh.get_surface_count()
+			for surface in worker_mesh.get_surface_count():
+				same = same and worker_mesh.surface_get_arrays(surface) == synchronous_mesh.surface_get_arrays(surface) \
+					and worker_mesh.surface_get_material(surface) == synchronous_mesh.surface_get_material(surface)
+			_check(same, "worker snapshot publishes identical geometry and custom materials")
+	_check(job.finish(material).has("error") and not job.compute(), "a consumed result cannot publish or compute again")
 
 func _check_collision_hull() -> void:
 	var points := PackedVector3Array([Vector3.UP, Vector3.DOWN])
