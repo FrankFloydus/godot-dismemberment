@@ -156,7 +156,17 @@ func _run() -> void:
 			torso_sections += 1
 			var interiors := visual.get_children().filter(
 				func(node: Node) -> bool: return node is MeshInstance3D and node.is_in_group(&"slice_interior_visual"))
-			torso_with_interiors += int(interiors.size() >= 2)
+			var authored_faces := 0
+			var authored_indices := 0
+			for layer: Dictionary in visual.get_meta(&"slice_interior_layers", []):
+				for face: Dictionary in layer.get("exposed_caps", []):
+					var indices: PackedInt32Array = face.arrays[Mesh.ARRAY_INDEX]
+					authored_faces += 1
+					authored_indices += indices.size()
+			if interiors.size() == 1:
+				var interior: ArrayMesh = interiors[0].mesh
+				torso_with_interiors += int(authored_faces >= 2 and interior.get_surface_count() == 1
+					and interior.surface_get_array_index_len(0) == authored_indices)
 			var shell := visual.get_surface_override_material(0)
 			torso_with_stains += int(visual.has_meta(&"plane_slice_stains") and shell != null and shell.next_pass != null)
 			if (source_transform * bounds.get_center()).y > WAIST_HEIGHT:
@@ -164,7 +174,7 @@ func _run() -> void:
 		# Freeze pieces only after checking that gameplay spawned them as live bodies.
 		body.freeze = true
 	_expect(torso_with_interiors == 2 and torso_with_stains == 2,
-		"both waist faces have independent interior geometry and a stain on the surrounding exterior")
+		"both waist faces batch their authored interior triangles and retain a stain on the exterior")
 	_expect(live_colliders, "all output sections are live rigid bodies with convex collision")
 	_expect(bounded_colliders, "whole-mesh fragments use bounded convex collision point counts")
 	_expect(capped_pieces >= 4, "both torso sections and the detached arms expose the authored cap material on the swipe plane")

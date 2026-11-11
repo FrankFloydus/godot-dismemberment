@@ -71,6 +71,11 @@ with independently allocated body geometry. `--targets=20` limits the
 runtime test fixture to 20 of the 30 authored stations. `--full-detail`
 runs the same fixture with the original body mesh.
 
+Use `-- --repeat-slices --settle-ms=3000` to measure four consecutive F
+presses, the room frame times between them, and the remaining simulation
+load after settling. Add `--physics-hz=60` to set the tick rate for that
+test process. The range itself uses the host project's physics settings.
+
 ```powershell
 & $Godot --audio-driver Dummy --disable-vsync --resolution 1600x900 --path project --script res://tests/test_mass_range.gd
 ```

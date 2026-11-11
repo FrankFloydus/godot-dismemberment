@@ -143,6 +143,9 @@ its world normal with `(mesh_instance.global_basis.transposed() * normal).normal
 Build a local `Plane` from the resulting normal and point. The demo calls
 the same geometry API from its camera swipe, builds convex rigid bodies from
 the pieces, and publishes the swap after all colliders succeed.
+The FPS range removes the source rig's collision objects from the physics
+world once the fragments take over, then restores those objects on reset.
+The addon uses the host project's physics tick rate and solver settings.
 
 For a batch, capture each source mesh and bone palette on the main thread with
 `MeshPlaneSlice.capture_pose_job(mesh_instance, skeleton, local_plane)`.

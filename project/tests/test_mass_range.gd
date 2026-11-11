@@ -5,14 +5,20 @@ extends SceneTree
 ## Pass --unique-meshes for independently allocated bodies with slightly different vertices.
 ## Pass --full-detail to benchmark the original humanoid mesh.
 ## Pass --dismember-only or --slice-only to measure a fresh action in isolation.
+## Pass --repeat-slices for four consecutive F presses with no reset.
+## Add --settle-ms=3000 to sample the room again after an extra pause.
+## Pass --physics-hz=60 to benchmark a different tick rate for this test run.
 
 const RANGE := "res://demo/mass_range.tscn"
 const RANGE_MESH := "res://demo/assets/humanoid/body_mesh_mass_range.res"
 const FULL_DETAIL_MESH := "res://demo/assets/humanoid/body_mesh.res"
+const PlaneSlicing := preload("res://demo/fps_plane_slicing.gd")
 const AUTHORED_TARGET_COUNT := 30
 const TIMEOUT_USEC := 90000000
 const FRAGMENT_GROUP := &"Dismembered Limb"
 const TEST_DEVICE := 15
+const REPEAT_SLICE_PASSES := 4
+const ROOM_SAMPLE_USEC := 500000
 
 class InputIsolation extends Node:
 	func _input(event: InputEvent) -> void:
@@ -189,19 +195,181 @@ func _dismembered_target_counts() -> Vector3i:
 	return counts
 
 
-func _summarize(gaps: Array[float]) -> Dictionary:
-	if gaps.is_empty():
+func _summarize(values: Array[float], unit_suffix := "_ms") -> Dictionary:
+	if values.is_empty():
 		return {}
-	gaps.sort()
-	var elapsed := 0.0
-	for gap in gaps:
-		elapsed += gap
+	values.sort()
+	var total := 0.0
+	for value in values:
+		total += value
 	return {
-		"samples": gaps.size(),
-		"mean_ms": elapsed / gaps.size(),
-		"p95_ms": gaps[ceili(gaps.size() * 0.95) - 1],
-		"max_ms": gaps.back(),
+		"samples": values.size(),
+		"mean" + unit_suffix: total / values.size(),
+		"p95" + unit_suffix: values[ceili(values.size() * 0.95) - 1],
+		"max" + unit_suffix: values.back(),
 	}
+
+
+func _fragment_ids() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for target: Dictionary in arena.targets:
+		var ids := {}
+		for body: RigidBody3D in target.get("plane_slice", {}).get("fragments", []):
+			if is_instance_valid(body) and body.is_inside_tree() and not body.is_queued_for_deletion():
+				ids[body.get_instance_id()] = true
+		result.append(ids)
+	return result
+
+
+func _source_colliders_in_world() -> Dictionary:
+	var attached := {}
+	var space := arena.get_world_3d().space
+	for target: Dictionary in arena.targets:
+		for bone: PhysicalBone3D in target.physics_bodies.values():
+			var body := bone.get_rid()
+			if PhysicsServer3D.body_get_space(body) == space:
+				attached[body] = true
+		for hitbox: Dictionary in target.hitboxes:
+			var area: Area3D = hitbox.area
+			var hitbox_rid := area.get_rid()
+			if PhysicsServer3D.area_get_space(hitbox_rid) == space:
+				attached[hitbox_rid] = true
+	return attached
+
+
+func _sample_room(pass_number: int, settled: bool = false) -> void:
+	var frame_gaps: Array[float] = []
+	var physics_ticks: Array[float] = []
+	var collision_pairs: Array[float] = []
+	var active_objects: Array[float] = []
+	var draw_calls: Array[float] = []
+	var started := Time.get_ticks_usec()
+	var previous := started
+	var previous_physics_frame := Engine.get_physics_frames()
+	while previous - started < ROOM_SAMPLE_USEC:
+		await process_frame
+		var now := Time.get_ticks_usec()
+		var physics_frame_number := Engine.get_physics_frames()
+		frame_gaps.append((now - previous) * 0.001)
+		physics_ticks.append(physics_frame_number - previous_physics_frame)
+		collision_pairs.append(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS))
+		active_objects.append(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS))
+		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		previous = now
+		previous_physics_frame = physics_frame_number
+
+	var fragments := 0
+	var sleeping := 0
+	var frozen := 0
+	for node in get_nodes_in_group(FRAGMENT_GROUP):
+		var body := node as RigidBody3D
+		if body != null and not body.is_queued_for_deletion():
+			fragments += 1
+			frozen += int(body.freeze)
+			sleeping += int(body.sleeping and not body.freeze)
+	var max_target_fragments := 0
+	for ids in _fragment_ids():
+		max_target_fragments = maxi(max_target_fragments, ids.size())
+	print("MASS_RANGE_ROOM=", JSON.stringify({
+		"after_pass": pass_number,
+		"settled": settled,
+		"frame_gaps": _summarize(frame_gaps),
+		# Godot reports the peaks from its last one-second monitor interval.
+		"engine_monitor_process_peak_ms": Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		"engine_monitor_physics_peak_ms": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+		"physics_ticks_per_frame": _summarize(physics_ticks, ""),
+		"physics_active_objects": _summarize(active_objects, ""),
+		"physics_collision_pairs": _summarize(collision_pairs, ""),
+		"draw_calls": _summarize(draw_calls, ""),
+		"fragment_nodes": fragments,
+		"sleeping_fragments": sleeping,
+		"frozen_fragments": frozen,
+		"max_target_fragments": max_target_fragments,
+	}))
+
+
+func _run_repeated_slices(settle_ms: int) -> void:
+	await _sample_room(0)
+	var original_colliders := _source_colliders_in_world()
+	var suspended_colliders := -1
+	_expect(not original_colliders.is_empty(), "the original rigs have colliders in the world before F")
+	var previous := _fragment_ids()
+	var largest_recut_growth := 2
+	for pass_number in range(1, REPEAT_SLICE_PASSES + 1):
+		var result := await _run_action(&"slice", _key.bind(KEY_F))
+		if result.is_empty():
+			return
+		var current := _fragment_ids()
+		var changed := 0
+		var created := 0
+		var replaced := 0
+		var skipped_previous_counts: Array[int] = []
+		for index in current.size():
+			var added := 0
+			var removed := 0
+			for id in current[index]:
+				if not previous[index].has(id):
+					added += 1
+			for id in previous[index]:
+				if not current[index].has(id):
+					removed += 1
+			if added == 0:
+				skipped_previous_counts.append(previous[index].size())
+				_expect(removed == 0, "F pass %d preserves all pieces of skipped target %d" % [pass_number, index])
+			else:
+				changed += 1
+				created += added
+				replaced += removed
+				var expected_replacements := int(pass_number > 1)
+				_expect(added >= 2 and removed == expected_replacements
+						and current[index].size() <= PlaneSlicing.MAX_FRAGMENTS,
+						"F pass %d replaces only the cut piece of target %d within the fragment cap" % [pass_number, index])
+				if pass_number > 1:
+					largest_recut_growth = maxi(largest_recut_growth, added - removed)
+		_expect(changed == int(result.get("targets", -1)) and created == int(result.get("fragments", -1))
+				and target_count - changed == int(result.get("skipped", -1))
+				and int(result.get("cuts", 0)) >= changed and created > replaced,
+				"F pass %d accounts for each new fragment, recut and skipped target" % pass_number)
+		if pass_number < REPEAT_SLICE_PASSES:
+			_expect(changed == target_count, "F pass %d cuts every target" % pass_number)
+		else:
+			# One recut can replace its input with several disconnected pieces.
+			_expect(skipped_previous_counts.all(func(count: int) -> bool:
+				return PlaneSlicing.MAX_FRAGMENTS - count < largest_recut_growth),
+				"F pass %d skips only targets near the fragment cap (prior counts %s)"
+				% [pass_number, skipped_previous_counts])
+		print("MASS_RANGE_REPEAT_PASS=", JSON.stringify({
+			"pass": pass_number,
+			"changed_targets": changed,
+			"created_fragments": created,
+			"replaced_fragments": replaced,
+			"skipped_previous_counts": skipped_previous_counts,
+			"largest_recut_growth": largest_recut_growth,
+		}))
+		if pass_number == 1:
+			_verify_slice(result)
+		await _sample_room(pass_number)
+		if pass_number == 1:
+			suspended_colliders = _source_colliders_in_world().size()
+			_expect(suspended_colliders == 0, "F removes hidden rig colliders from the world (%d remain)"
+				% suspended_colliders)
+		_expect(_fragment_ids() == current, "F pass %d keeps all published pieces between inputs" % pass_number)
+		previous = current
+	if settle_ms > 0:
+		await create_timer(settle_ms / 1000.0).timeout
+		await _sample_room(REPEAT_SLICE_PASSES, true)
+		_expect(_fragment_ids() == previous, "all published pieces persist while the room settles")
+	if not (await _run_action(&"reset", _key.bind(KEY_R))).is_empty():
+		await physics_frame
+		_verify_reset()
+		var restored_colliders := _source_colliders_in_world()
+		_expect(restored_colliders == original_colliders,
+			"R restores every original physical bone and hitbox to the world")
+		print("MASS_RANGE_SOURCE_COLLIDERS=", JSON.stringify({
+			"before_f": original_colliders.size(),
+			"after_f": suspended_colliders,
+			"after_r": restored_colliders.size(),
+		}))
 
 
 func _run_action(action: StringName, send: Callable) -> Dictionary:
@@ -415,6 +583,16 @@ func _run() -> void:
 	full_detail = "--full-detail" in args
 	if "--targets=20" in args:
 		target_count = 20
+	var settle_ms := 0
+	for argument in args:
+		if argument.begins_with("--physics-hz="):
+			var rate := argument.trim_prefix("--physics-hz=")
+			if not _expect(rate.is_valid_int() and rate.to_int() > 0, "the test tick rate is a positive integer"):
+				await _finish()
+				return
+			Engine.physics_ticks_per_second = rate.to_int()
+		elif argument.begins_with("--settle-ms="):
+			settle_ms = maxi(0, argument.trim_prefix("--settle-ms=").to_int())
 	if not _prepare_range():
 		await _finish()
 		return
@@ -426,12 +604,17 @@ func _run() -> void:
 		"gpu": RenderingServer.get_video_adapter_name(),
 		"cpu": OS.get_processor_name(),
 		"window": str(root.size),
+		"physics_backend": ProjectSettings.get_setting("physics/3d/physics_engine"),
 		"physics_ticks": Engine.physics_ticks_per_second,
 		"target_count": target_count,
 		"unique_meshes": unique_meshes,
 		"full_detail": full_detail,
 		"body_triangles": body.surface_get_array_index_len(0) / 3,
 	}))
+	if "--repeat-slices" in args:
+		await _run_repeated_slices(settle_ms)
+		await _finish()
+		return
 	if "--slice-only" in args:
 		var fresh_slice := await _run_action(&"slice", _key.bind(KEY_F))
 		if not fresh_slice.is_empty():

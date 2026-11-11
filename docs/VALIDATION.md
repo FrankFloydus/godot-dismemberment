@@ -140,6 +140,35 @@ worst gap. Cutting the moving ragdolls after RMB affected all 30 in both
 fixtures and took 0.939 s with the mass range body and 2.776 s with the
 original body.
 
+#### Four consecutive mass slices
+
+The same-seed Forward+ comparison used the 19,990-triangle crowd body,
+1600 × 900 with VSync disabled, and the Windows release DLL. It measured
+frame gaps for roughly half a second immediately after each of four F
+presses. The first three presses cut all 30 targets. The fourth cut 25,
+with the other five already at or near the 12-fragment limit. Both builds
+ended with 326 live fragments. Every fragment retained its collision shape
+and remained eligible for further hits and cuts within the existing limits.
+
+| GodotPhysics3D configuration | After F3, frame p95 | After F4, frame p95 |
+| --- | ---: | ---: |
+| 60 Hz, 16 solver iterations, before | 17.4 ms | 20.7 ms |
+| 60 Hz, 16 solver iterations, after | 7.5 ms | 9.3 ms |
+| 240 Hz, 32 solver iterations, before | 43.2 ms | 52.3 ms |
+| 240 Hz, 32 solver iterations, after | 35.5 ms | 41.6 ms |
+
+At 60 Hz after F4, active broad-phase pairs fell from 3,855 to 1,460 by
+removing the replaced rigs' colliders. Draw calls fell from 4,043 to 2,726
+by merging the default interior faces that share a material on each
+fragment. Arbitrary custom materials keep their per-volume transforms.
+The engine settings were matched within each pair and are controlled by
+the host project during normal use.
+
+The repeated and mixed-action suites also passed with Jolt at 60 Hz. They
+verified that all 1,170 original collider RIDs leave the physics world on
+the first F and are restored on R. Jolt reported warnings for unsupported
+parameters on the existing authored joints, with zero test errors.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

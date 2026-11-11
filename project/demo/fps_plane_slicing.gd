@@ -918,10 +918,14 @@ func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: A
 		"remainder": remainder,
 		"fragments": fragments,
 		"skeleton_visible": skeleton.visible,
+		"skeleton_process_mode": skeleton.process_mode,
 		"physics_layers": physics_layers,
 		"bones": bones,
 	}
 	skeleton.hide()
+	# The fragments and the optional remainder now own collision. Disabling
+	# the hidden rig also removes its standing hitboxes and bones from physics.
+	skeleton.process_mode = Node.PROCESS_MODE_DISABLED
 
 func _add_fragment_exception(first: RigidBody3D, second: RigidBody3D) -> void:
 	var first_peers: Array[int] = first.get_meta(COLLISION_PEERS_META)
@@ -989,6 +993,7 @@ func restore(target: Dictionary) -> void:
 	for body: PhysicalBone3D in state.physics_layers:
 		if is_instance_valid(body):
 			body.collision_layer = state.physics_layers[body]
+	target.skeleton.process_mode = state.skeleton_process_mode
 	target.skeleton.visible = state.skeleton_visible
 	target.erase("plane_slice")
 

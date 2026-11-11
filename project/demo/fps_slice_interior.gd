@@ -88,6 +88,8 @@ static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Pla
 			bounds = _source_bounds(mesh, transform, source_surfaces)
 			destination = _find_volume(visuals, bounds)
 		_store(destination if destination != null else retained, layer)
+	for visual: MeshInstance3D in positive_visuals + negative_visuals:
+		_publish_caps(visual)
 
 
 static func _is_missing(skeleton: Skeleton3D, name: StringName, missing: PackedStringArray) -> bool:
@@ -219,7 +221,7 @@ static func _store_split(visual: MeshInstance3D, layer: Dictionary, mesh: ArrayM
 		if not tissue_frames.has(visual):
 			tissue_frames[visual] = _tissue_frames(visual.mesh, cap_arrays.get(visual, {}))
 		frames = tissue_frames[visual]
-	half.visible_mesh = _exposed_caps(mesh, surfaces, layer, frames)
+	half.exposed_caps = _exposed_caps(mesh, surfaces, layer, frames)
 	_store(visual, half)
 
 
@@ -229,18 +231,107 @@ static func _store(visual: MeshInstance3D, layer: Dictionary) -> void:
 	var layers: Array = visual.get_meta(LAYERS_META, [])
 	layers.append(layer)
 	visual.set_meta(LAYERS_META, layers)
-	var mesh := layer.get("visible_mesh") as ArrayMesh
-	if mesh == null or mesh.get_surface_count() == 0:
-		return
+
+
+static func _publish_caps(visual: MeshInstance3D) -> void:
+	var shared_faces := {}
+	for layer: Dictionary in visual.get_meta(LAYERS_META, []):
+		var local_mesh: ArrayMesh
+		for face: Dictionary in layer.get("exposed_caps", []):
+			var material: Material = face.material
+			# Arbitrary custom materials may use the volume's local coordinates.
+			if material != null and material.resource_path == DEFAULT_CAP_PATH and material.next_pass == null:
+				if not shared_faces.has(material):
+					var faces: Array[Dictionary] = []
+					shared_faces[material] = faces
+				shared_faces[material].append({"arrays": face.arrays, "transform": layer.transform})
+			else:
+				if local_mesh == null:
+					local_mesh = ArrayMesh.new()
+				_add_cap_surface(local_mesh, face.arrays, material)
+		if local_mesh != null:
+			_add_cap_visual(visual, layer.name, local_mesh, layer.transform)
+	if not shared_faces.is_empty():
+		var mesh := ArrayMesh.new()
+		for material: Material in shared_faces:
+			_add_cap_surface(mesh, _merge_caps(shared_faces[material]), material)
+		_add_cap_visual(visual, &"SliceInterior", mesh, Transform3D.IDENTITY)
+
+
+static func _add_cap_surface(mesh: ArrayMesh, arrays: Array, material: Material) -> void:
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var surface := mesh.get_surface_count() - 1
+	mesh.surface_set_material(surface, material)
+	mesh.surface_set_name(surface, CAP)
+
+
+static func _add_cap_visual(visual: MeshInstance3D, name: StringName, mesh: ArrayMesh,
+		transform: Transform3D) -> void:
 	var interior := MeshInstance3D.new()
-	interior.name = layer.name
+	interior.name = name
 	interior.mesh = mesh
-	interior.transform = layer.transform
+	interior.transform = transform
 	interior.layers = visual.layers
 	interior.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	interior.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	interior.add_to_group(VISUAL_GROUP)
 	visual.add_child(interior)
+
+
+static func _merge_caps(faces: Array[Dictionary]) -> Array:
+	var positions := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var tangents := PackedFloat32Array()
+	var texcoords := PackedVector2Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	var has_colors := faces.any(func(face: Dictionary) -> bool: return face.arrays[Mesh.ARRAY_COLOR] != null)
+	for face in faces:
+		var arrays: Array = face.arrays
+		var transform: Transform3D = face.transform
+		var normal_basis := transform.basis.inverse().transposed()
+		var handedness := signf(transform.basis.determinant())
+		var offset := positions.size()
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var face_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var face_tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var face_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		positions.append_array(transform * vertices)
+		texcoords.append_array(arrays[Mesh.ARRAY_TEX_UV])
+		for vertex in vertices.size():
+			var normal := (normal_basis * face_normals[vertex]).normalized()
+			var start := vertex * 4
+			var tangent := Vector3(face_tangents[start], face_tangents[start + 1], face_tangents[start + 2])
+			tangent = (transform.basis * tangent).slide(normal).normalized()
+			normals.append(normal)
+			tangents.append(tangent.x)
+			tangents.append(tangent.y)
+			tangents.append(tangent.z)
+			tangents.append(face_tangents[start + 3] * handedness)
+		for triangle in range(0, face_indices.size(), 3):
+			var second := face_indices[triangle + 1]
+			var third := face_indices[triangle + 2]
+			indices.append(offset + face_indices[triangle])
+			indices.append(offset + (third if handedness < 0.0 else second))
+			indices.append(offset + (second if handedness < 0.0 else third))
+		if has_colors:
+			var face_colors: Variant = arrays[Mesh.ARRAY_COLOR]
+			if face_colors == null:
+				for vertex in vertices.size():
+					colors.append(Color.WHITE)
+			else:
+				colors.append_array(face_colors)
+
+	var merged := []
+	merged.resize(Mesh.ARRAY_MAX)
+	merged[Mesh.ARRAY_VERTEX] = positions
+	merged[Mesh.ARRAY_NORMAL] = normals
+	merged[Mesh.ARRAY_TANGENT] = tangents
+	merged[Mesh.ARRAY_TEX_UV] = texcoords
+	merged[Mesh.ARRAY_INDEX] = indices
+	if has_colors:
+		merged[Mesh.ARRAY_COLOR] = colors
+	return merged
 
 
 static func _tissue_frames(mesh: ArrayMesh, cap_arrays: Dictionary) -> Array[Dictionary]:
@@ -295,8 +386,8 @@ static func _align_tissue_surface(arrays: Array, transform: Transform3D, inverse
 	return false
 
 
-static func _exposed_caps(volume: ArrayMesh, surfaces: Array, layer: Dictionary, frames: Array) -> ArrayMesh:
-	var visible := ArrayMesh.new()
+static func _exposed_caps(volume: ArrayMesh, surfaces: Array, layer: Dictionary, frames: Array) -> Array[Dictionary]:
+	var visible: Array[Dictionary] = []
 	var transform: Transform3D = layer.transform
 	var inverse := transform.basis.inverse()
 	var normal_basis := inverse.transposed()
@@ -320,9 +411,7 @@ static func _exposed_caps(volume: ArrayMesh, surfaces: Array, layer: Dictionary,
 		var relief: float = layer.relief * (0.15 if continuous_tissue else 1.0)
 		var paint_rim: bool = not continuous_tissue and material == layer.cap_material
 		_round_face(arrays, normal, outward, relief, profile, paint_rim, 0.72 if continuous_tissue else 0.0)
-		visible.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		visible.surface_set_material(visible.get_surface_count() - 1, material)
-		visible.surface_set_name(visible.get_surface_count() - 1, CAP)
+		visible.append({"arrays": arrays, "material": material})
 	return visible
 
 
