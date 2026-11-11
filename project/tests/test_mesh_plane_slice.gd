@@ -34,6 +34,7 @@ func _run() -> void:
 	var two_boxes := _make_boxes([Vector3(0, -2.5, 0), Vector3(0, 2.5, 0)], exterior)
 	_check_cut(two_boxes, Plane(Vector3.RIGHT, 0.3), cap, [exterior],
 		2, 8.0, 5.6, 10.4, "two disconnected cap loops")
+	_check_connected_pieces(two_boxes, exterior, cap)
 
 	var concave := _make_concave_prism(exterior)
 	_check_cut(concave, Plane(Vector3.RIGHT, -0.2), cap, [exterior],
@@ -52,6 +53,49 @@ func _run() -> void:
 		cube.surface_get_arrays(0) == original_arrays, "slices leave the input mesh untouched")
 	print("MESH_PLANE_SLICE_CHECKS=%d FAILURES=%d" % [checks, failures])
 	quit(1 if failures else 0)
+
+func _check_connected_pieces(two_boxes: ArrayMesh, exterior: Material, cap: Material) -> void:
+	var untouched_material := StandardMaterial3D.new()
+	var uncut := _make_boxes([Vector3(3.5, 0, 0)], untouched_material)
+	var source := two_boxes.duplicate() as ArrayMesh
+	source.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, uncut.surface_get_arrays(0))
+	source.surface_set_material(1, untouched_material)
+	var plane := Plane(Vector3.RIGHT, 0.3)
+	var result := MeshPlaneSlice.slice_mesh_pieces(source, plane, cap)
+	_check(not result.has("error") and result.get("loop_count") == 2,
+		"piece output retains both cut contours")
+	var positive: Array = result.get("positive_pieces", [])
+	var negative: Array = result.get("negative_pieces", [])
+	_check(positive.is_typed() and negative.is_typed() and
+		positive.get_typed_class_name() == &"ArrayMesh" and negative.get_typed_class_name() == &"ArrayMesh",
+		"both result arrays are typed as ArrayMesh")
+	_check(positive.size() == 3 and negative.size() == 2,
+		"each connected section has a separate resource, including the uncut box")
+	var total_volume := 0.0
+	for side in [1, -1]:
+		var pieces: Array = positive if side == 1 else negative
+		for piece: ArrayMesh in pieces:
+			if piece.get_surface_count() == 1:
+				_check(side == 1 and piece.surface_get_material(0) == untouched_material
+					and piece.get_aabb().is_equal_approx(uncut.get_aabb()), "the uncut component stays intact")
+				total_volume += _volume(piece)
+			else:
+				_check(piece.get_aabb().size.y < 2.01, "a piece does not bridge the gap between boxes")
+				total_volume += _check_half(piece, plane, side, cap, [exterior], 4.0, "separate box section")
+	_near(total_volume, _volume(source), "all connected pieces conserve volume")
+
+	var instance := MeshInstance3D.new()
+	instance.mesh = source
+	var override := StandardMaterial3D.new()
+	instance.material_override = override
+	var posed := MeshPlaneSlice.slice_pose(instance, null, plane, cap)
+	var posed_positive: Array = posed.get("positive_pieces", [])
+	var posed_negative: Array = posed.get("negative_pieces", [])
+	_check(posed_positive.size() == positive.size() and posed_negative.size() == negative.size() and
+		posed.get("loop_count") == 2, "the direct pose API emits the same connected sections")
+	for piece: ArrayMesh in posed_positive + posed_negative:
+		_check(piece.surface_get_material(0) == override, "the pose API keeps active instance material")
+	instance.free()
 
 func _check_cut(source: ArrayMesh, plane: Plane, cap: Material, exterior: Array[Material],
 		expected_loops: int, expected_area: float, expected_positive: float, expected_negative: float,

@@ -388,28 +388,44 @@ void MeshPartition::_bind_methods() {
 }
 
 Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D *skeleton) {
-    if (!instance) return {};
+    std::vector<MeshPoseSurface> surfaces;
+    if (!snapshot_pose_surfaces(instance, skeleton, surfaces)) return {};
+
+    Ref<ArrayMesh> output;
+    output.instantiate();
+    for (int i = 0; i < int(surfaces.size()); ++i) {
+        const MeshPoseSurface &surface = surfaces[i];
+        output->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, surface.arrays, {}, {}, BitField<Mesh::ArrayFormat>(surface.format_flags));
+        if (output->get_surface_count() != i + 1) return {};
+        output->surface_set_material(i, surface.material);
+        output->surface_set_name(i, surface.name);
+    }
+    return output;
+}
+
+bool MeshPartition::snapshot_pose_surfaces(MeshInstance3D *instance, Skeleton3D *skeleton, std::vector<MeshPoseSurface> &surfaces) {
+    if (!instance) return false;
     const Ref<ArrayMesh> source = instance->get_mesh();
-    if (source.is_null() || source->get_surface_count() == 0) return {};
+    if (source.is_null() || source->get_surface_count() == 0) return false;
 
     bool active_blends = false;
     for (int blend = 0; blend < source->get_blend_shape_count(); ++blend) {
         const float weight = instance->get_blend_shape_value(blend);
-        if (!std::isfinite(weight)) return {};
+        if (!std::isfinite(weight)) return false;
         active_blends |= std::abs(weight) > SNAPSHOT_BLEND_EPSILON;
     }
     const bool relative_blends = source->get_blend_shape_mode() == Mesh::BLEND_SHAPE_MODE_RELATIVE;
     const uint64_t skin_channels = Mesh::ARRAY_FORMAT_BONES | Mesh::ARRAY_FORMAT_WEIGHTS;
     const uint64_t retained_flags = (uint64_t(0xfff) << Mesh::ARRAY_FORMAT_CUSTOM_BASE) | Mesh::ARRAY_FLAG_USE_DYNAMIC_UPDATE;
     std::vector<SkinBind> palette;
-    Ref<ArrayMesh> output;
-    output.instantiate();
     const int surface_count = source->get_surface_count();
+    std::vector<MeshPoseSurface> captured;
+    captured.reserve(surface_count);
     for (int surface = 0; surface < surface_count; ++surface) {
-        if (source->surface_get_primitive_type(surface) != Mesh::PRIMITIVE_TRIANGLES) return {};
+        if (source->surface_get_primitive_type(surface) != Mesh::PRIMITIVE_TRIANGLES) return false;
         const uint64_t format = source->surface_get_format(surface);
         Array arrays = source->surface_get_arrays(surface);
-        if (arrays.size() != Mesh::ARRAY_MAX || arrays[Mesh::ARRAY_VERTEX].get_type() != Variant::PACKED_VECTOR3_ARRAY) return {};
+        if (arrays.size() != Mesh::ARRAY_MAX || arrays[Mesh::ARRAY_VERTEX].get_type() != Variant::PACKED_VECTOR3_ARRAY) return false;
         const PackedVector3Array positions = arrays[Mesh::ARRAY_VERTEX];
         const PackedVector3Array normals = arrays[Mesh::ARRAY_NORMAL];
         const PackedFloat32Array tangents = arrays[Mesh::ARRAY_TANGENT];
@@ -417,28 +433,26 @@ Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D
         const int64_t vertex_count = positions.size();
         if (vertex_count < 3 || (!normals.is_empty() && normals.size() != vertex_count) ||
                 (!tangents.is_empty() && tangents.size() != vertex_count * 4) ||
-                (indices.is_empty() ? vertex_count : indices.size()) % 3 != 0) return {};
-        for (int32_t index : indices) if (index < 0 || index >= vertex_count) return {};
+                (indices.is_empty() ? vertex_count : indices.size()) % 3 != 0) return false;
+        for (int32_t index : indices) if (index < 0 || index >= vertex_count) return false;
 
         if (active_blends) {
             arrays = blended_arrays(arrays, source->surface_get_blend_shape_arrays(surface), instance, relative_blends, true);
-            if (arrays.is_empty()) return {};
+            if (arrays.is_empty()) return false;
         }
         const uint64_t surface_skin = format & skin_channels;
         if (surface_skin != 0) {
-            if (surface_skin != skin_channels) return {};
+            if (surface_skin != skin_channels) return false;
             if (palette.empty()) palette = snapshot_palette(instance, skeleton);
-            if (palette.empty() || !bake_skin_arrays(arrays, palette, true)) return {};
+            if (palette.empty() || !bake_skin_arrays(arrays, palette, true)) return false;
         } else {
             const PackedVector3Array posed_positions = arrays[Mesh::ARRAY_VERTEX];
-            for (const Vector3 &position : posed_positions) if (!position.is_finite()) return {};
+            for (const Vector3 &position : posed_positions) if (!position.is_finite()) return false;
         }
-        output->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays, {}, {}, BitField<Mesh::ArrayFormat>(format & retained_flags));
-        if (output->get_surface_count() != surface + 1) return {};
-        output->surface_set_material(surface, instance->get_active_material(surface));
-        output->surface_set_name(surface, source->surface_get_name(surface));
+        captured.push_back({ std::move(arrays), instance->get_active_material(surface), source->surface_get_name(surface), format & retained_flags });
     }
-    return output;
+    surfaces = std::move(captured);
+    return true;
 }
 
 Dictionary MeshPartition::get_surface_lods(const Ref<ArrayMesh> &mesh, int surface) {

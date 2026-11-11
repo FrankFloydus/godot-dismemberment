@@ -46,11 +46,12 @@ AgX tone mapping. WASD moves, the mouse looks, Shift sprints, Space jumps,
 R resets, and 1/2/3 changes station. Esc releases the mouse. F fires a blood-only
 shot, X hides a hit limb, and C cleans up debris.
 
-On `experiment/plane-slicing`, aim at an intact forearm and press **V** to
-slice it. **Q / E** tilt the cutting plane by 5° in either direction. Press
-**V** on a detached fragment to slice it again. **R** restores the rig. Both
-sides use the pose captured at the instant of the cut, and detached pieces
-move as rigid bodies.
+On `experiment/plane-slicing`, hold **middle mouse**, drag from the crosshair
+across an intact subject, and release to slash through the posed mesh. The swipe
+sets the angle. Each closed fragment gets its own rigid body and can be slashed
+again. **R** restores the rig. **V** remains the quick forearm cut, with
+**Q / E** to tilt that cut by up to 5°. See the [slicing API](docs/USAGE.md#experimental-slicing-api)
+to drive the same operation from a game animation.
 
 The supplied binaries target **Windows x86_64**, standard single-precision Godot.
 They use the Godot **4.3** extension API; local verification uses **4.7 stable**.

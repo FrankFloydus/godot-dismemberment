@@ -139,6 +139,14 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_bunpq")
 
+[node name="SlashPreview" type="Line2D" parent="Screen"]
+visible = false
+width = 2.0
+default_color = Color(0.55, 1, 0.96, 0.9)
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+
 [node name="AimLabel" type="Label" parent="Screen" unique_id=225726032]
 anchor_left = 0.5
 anchor_top = 0.5
@@ -220,7 +228,7 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.64, 0.94, 0.91, 1)
 theme_override_fonts/font = ExtResource("3_data")
 theme_override_font_sizes/font_size = 12
-text = "V Slice forearm or fragment  ·  Q/E Tilt cut plane"
+text = "MMB Drag to slash  ·  V Forearm cut  ·  Q/E Tilt"
 
 [node name="StatsPlate" type="Panel" parent="Screen"]
 anchor_left = 1.0

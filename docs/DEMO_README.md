@@ -43,11 +43,14 @@ wound without severing.
 - **F:** blood-only shot; **X:** hide-only shot; **C:** clean up detached limbs.
 - **Esc:** release/capture the mouse.
 
-On the experimental slicing branch, aim at either intact forearm and press
-**V** to cut at the ray contact. **Q / E** tilt the plane within ±5°. Aim at
-the detached piece and press **V** again to slice it. **R** restores the subject. The
-prototype captures the visible pose for both meshes and uses a rigid body for
-each detached piece. It accepts cuts that produce one closed section.
+On the experimental slicing branch, aim at the subject, hold **middle mouse**,
+drag in the direction of the slash, and release. The line starts at the
+crosshair. The first subject or fragment hit by the swipe within reach is cut
+along its plane. Try a horizontal swipe through the middle of the torso or
+a diagonal swipe across the upper body. Each closed piece can fall and be cut
+again. **R** restores the subject. The original **V** forearm cut and
+**Q / E** tilt are also available. Select **Slash Gesture** on the range root
+to edit the reach and cut-surface material.
 
 Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
 **FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,

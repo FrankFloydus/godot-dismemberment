@@ -8,11 +8,13 @@ const MAX_TILT := 5.0
 const EPSILON := 0.000001
 
 var tilt_degrees := 0.0
-var cap_material := StandardMaterial3D.new()
+var cap_material: Material
 
 func _init() -> void:
-	cap_material.albedo_color = Color(0.28, 0.045, 0.038)
-	cap_material.roughness = 0.84
+	var default_cap := StandardMaterial3D.new()
+	default_cap.albedo_color = Color(0.28, 0.045, 0.038)
+	default_cap.roughness = 0.84
+	cap_material = default_cap
 
 func adjust_tilt(step: float) -> void:
 	tilt_degrees = clampf(tilt_degrees + step, -MAX_TILT, MAX_TILT)
@@ -36,6 +38,106 @@ func slice_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary]) -> Di
 	if target.ragdoll or not target.missing.is_empty() or target.has("plane_slice"):
 		return _failure("Press R to restore this subject before slicing.")
 	return _slice_standing(arena, target, index, bone, point)
+
+func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world_plane: Plane) -> Dictionary:
+	var collider := hit.get("collider") as Node3D
+	var index := int(collider.get_meta(&"target_index", -1)) if collider != null else -1
+	if index < 0 or index >= targets.size():
+		return _failure("Swipe across an intact subject or a sliced fragment.")
+	var point: Vector3 = hit.get("position", Vector3.INF)
+	if not point.is_finite() or not world_plane.normal.is_finite() or not is_finite(world_plane.d):
+		return _failure("The slash needs a finite plane and contact point.")
+
+	var target := targets[index]
+	var old_body := collider as RigidBody3D if collider.has_meta(FRAGMENT_META) else null
+	var source: MeshInstance3D = target.mesh
+	var remainder: MeshInstance3D = null
+	var active_fragments: Array = []
+	if old_body != null:
+		if not target.has("plane_slice") or old_body.is_queued_for_deletion():
+			return _failure("The fragment has already been cleared.")
+		var state: Dictionary = target.plane_slice
+		active_fragments = state.fragments
+		if not active_fragments.has(old_body):
+			return _failure("The fragment has already been cleared.")
+		if active_fragments.size() >= MAX_FRAGMENTS:
+			return _failure("Fragment limit reached. Press R to restore the subject.")
+		remainder = state.remainder
+		source = old_body.get_node("Mesh") as MeshInstance3D
+	else:
+		if not (collider is Area3D or collider is PhysicalBone3D) or not collider.has_meta(&"bone"):
+			return _failure("Swipe across an intact subject or a sliced fragment.")
+		if target.ragdoll or not target.missing.is_empty() or target.has("plane_slice"):
+			return _failure("Press R to restore this subject before slicing.")
+
+	var mesh_transform := source.global_transform
+	var local_normal := mesh_transform.basis.transposed() * world_plane.normal
+	var normal_length := local_normal.length()
+	if not mesh_transform.is_finite() or mesh_transform.basis.determinant() == 0.0 \
+			or not is_finite(normal_length) or normal_length == 0.0:
+		return _failure("The slash did not define a valid cut in mesh space.")
+	var local_plane := Plane(local_normal / normal_length,
+		(world_plane.d - world_plane.normal.dot(mesh_transform.origin)) / normal_length)
+
+	var method := &"slice_mesh_pieces" if old_body != null else &"slice_pose"
+	if not ClassDB.class_has_method(&"MeshPlaneSlice", method):
+		return _failure("Build the experimental native slicing extension.")
+	var pieces: Dictionary
+	if old_body != null:
+		pieces = ClassDB.class_call_static(&"MeshPlaneSlice", method, source.mesh, local_plane, cap_material, EPSILON)
+	else:
+		pieces = ClassDB.class_call_static(&"MeshPlaneSlice", method, source, target.skeleton, local_plane, cap_material, EPSILON)
+	var positive: Array = pieces.get("positive_pieces", [])
+	var negative: Array = pieces.get("negative_pieces", [])
+	if positive.is_empty() or negative.is_empty():
+		return _failure(str(pieces.get("error", "The slash did not produce a closed cut.")))
+	var remaining_count := active_fragments.size() - 1 if old_body != null else 0
+	if remaining_count + positive.size() + negative.size() > MAX_FRAGMENTS:
+		return _failure("Fragment limit reached. Press R to restore the subject.")
+
+	var fragments: Array[RigidBody3D] = []
+	for piece: ArrayMesh in positive + negative:
+		var fragment := _make_fragment(piece, mesh_transform, target.component, index, source)
+		if fragment == null:
+			for prepared in fragments:
+				prepared.free()
+			return _failure("A slash fragment could not make a solid collider.")
+		fragments.append(fragment)
+
+	# Do not replace the visible mesh or its collision until every body is ready.
+	var normal := world_plane.normal.normalized()
+	var linear := Vector3.ZERO
+	var angular := Vector3.ZERO
+	var old_center := mesh_transform.origin
+	var previous_siblings: Array[PhysicsBody3D] = []
+	if old_body == null:
+		_suspend_source(target, null, fragments.duplicate())
+	else:
+		linear = old_body.linear_velocity
+		angular = old_body.angular_velocity
+		old_center = old_body.global_position
+		previous_siblings = old_body.get_collision_exceptions()
+		_remove_fragment(old_body)
+		active_fragments.erase(old_body)
+		active_fragments.append_array(fragments)
+	for i in fragments.size():
+		var fragment := fragments[i]
+		_attach_fragment(arena, fragment)
+		# Pieces start with coincident cap faces. Keep sibling contacts out of the solver.
+		for j in i:
+			var sibling := fragments[j]
+			fragment.add_collision_exception_with(sibling)
+			sibling.add_collision_exception_with(fragment)
+		# Recut pieces can still touch an earlier cap while the debris separates.
+		for sibling in previous_siblings:
+			if is_instance_valid(sibling) and not sibling.is_queued_for_deletion():
+				fragment.add_collision_exception_with(sibling)
+				sibling.add_collision_exception_with(fragment)
+		var separation := normal if i < positive.size() else -normal
+		fragment.linear_velocity = linear + angular.cross(fragment.global_position - old_center) + separation * 0.35
+		fragment.angular_velocity = angular
+	return {"ok": true, "mode": &"fragment" if old_body != null else &"whole", "target": index, "point": point,
+		"loop_count": pieces.loop_count, "remainder": remainder, "fragment": fragments[0], "fragments": fragments}
 
 func _slice_standing(arena: Node3D, target: Dictionary, index: int, bone: StringName, point: Vector3) -> Dictionary:
 	var source: MeshInstance3D = target.mesh
@@ -68,17 +170,7 @@ func _slice_standing(arena: Node3D, target: Dictionary, index: int, bone: String
 	target.actor.add_child(remainder)
 	remainder.global_transform = mesh_transform
 	remainder.reset_physics_interpolation()
-	var physics_layers := {}
-	for body: PhysicalBone3D in target.physics_bodies.values():
-		physics_layers[body] = body.collision_layer
-		body.collision_layer = 0
-	target["plane_slice"] = {
-		"remainder": remainder,
-		"fragments": [fragment],
-		"skeleton_visible": skeleton.visible,
-		"physics_layers": physics_layers,
-	}
-	skeleton.hide()
+	_suspend_source(target, remainder, [fragment])
 	_attach_fragment(arena, fragment)
 	var outward := _world_normal(mesh_transform, local_normal)
 	if not positive_distal:
@@ -115,9 +207,7 @@ func _slice_fragment(arena: Node3D, target: Dictionary, index: int, body: RigidB
 	var linear := body.linear_velocity
 	var angular := body.angular_velocity
 	var old_center := body.global_position
-	body.collision_layer = 0
-	body.hide()
-	body.queue_free()
+	_remove_fragment(body)
 	fragments.erase(body)
 	_attach_fragment(arena, positive)
 	_attach_fragment(arena, negative)
@@ -150,7 +240,10 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 		return null
 	# Use a unit-scale rigid frame, while retaining the source visual transform.
 	var center := mesh.get_aabb().get_center()
-	var body_transform := Transform3D(mesh_transform.basis.orthonormalized(), mesh_transform * center)
+	var body_basis := mesh_transform.basis.orthonormalized()
+	if body_basis.determinant() < 0.0:
+		body_basis.x = -body_basis.x
+	var body_transform := Transform3D(body_basis, mesh_transform * center)
 	var local_visual := body_transform.affine_inverse() * mesh_transform
 	var points := shape.points
 	for i in points.size():
@@ -187,15 +280,32 @@ func _attach_fragment(arena: Node3D, fragment: RigidBody3D) -> void:
 	fragment.global_transform = world_transform
 	fragment.reset_physics_interpolation()
 
+func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: Array) -> void:
+	var physics_layers := {}
+	for body: PhysicalBone3D in target.physics_bodies.values():
+		physics_layers[body] = body.collision_layer
+		body.collision_layer = 0
+	var skeleton: Skeleton3D = target.skeleton
+	target["plane_slice"] = {
+		"remainder": remainder,
+		"fragments": fragments,
+		"skeleton_visible": skeleton.visible,
+		"physics_layers": physics_layers,
+	}
+	skeleton.hide()
+
+func _remove_fragment(fragment: RigidBody3D) -> void:
+	fragment.collision_layer = 0
+	fragment.hide()
+	fragment.queue_free()
+
 func clear_fragments(target: Dictionary) -> void:
 	if not target.has("plane_slice"):
 		return
 	var fragments: Array = target.plane_slice.fragments
 	for fragment: RigidBody3D in fragments:
 		if is_instance_valid(fragment):
-			fragment.collision_layer = 0
-			fragment.hide()
-			fragment.queue_free()
+			_remove_fragment(fragment)
 	fragments.clear()
 
 func restore(target: Dictionary) -> void:

@@ -1,6 +1,5 @@
 extends Node3D
-## A first-person live-fire range. All shots raycast actual bone hitboxes and
-## call the native C++ component; no UI action selects or severs a limb.
+## First-person range for testing native skeletal cuts and posed mesh slashes.
 
 const SHOTGUN_IMPACT := preload("res://demo/shotgun_impact.tscn")
 const TRACER_SHADER := preload("res://demo/shotgun_tracer.gdshader")
@@ -14,6 +13,9 @@ const IMPACT_LIFETIME := 30.0
 const TRACER_DURATION := 0.105
 const TRACER_WIDTH := 0.012
 const FLASH_LIGHT_DURATION := 0.04
+const MIN_SLASH_DRAG := 24.0
+const SLASH_SAMPLE_SPACING := 12.0
+const MAX_SLASH_SEGMENTS := 48
 
 @export_group("Stations")
 ## Station selected when this scene starts, in scene-tree order.
@@ -42,6 +44,12 @@ const FLASH_LIGHT_DURATION := 0.04
 @export var source_ragdoll_bones := PackedStringArray([
 	"Head", "LeftUpLeg", "LeftLeg", "RightUpLeg", "RightLeg",
 ])
+
+@export_group("Slash Gesture")
+## Maximum distance from the camera at which a swipe can select a subject or fragment.
+@export_range(0.5, 20.0, 0.1, "suffix:m") var slash_reach := 6.0
+## Material assigned to newly exposed surfaces on geometric cuts.
+@export var slice_cap_material: Material
 
 @export_group("Player Movement")
 ## Maximum horizontal movement speed in metres per second while walking.
@@ -83,6 +91,7 @@ const FLASH_LIGHT_DURATION := 0.04
 @onready var stats_label: Label = $HUD/Screen/StatsLabel
 @onready var cursor_label: Label = $HUD/Screen/CursorLabel
 @onready var aim_label: Label = $HUD/Screen/AimLabel
+@onready var slash_preview: Line2D = $HUD/Screen/SlashPreview
 
 var targets: Array[Dictionary] = []
 var active_station := 0
@@ -112,6 +121,10 @@ var tracer_forward := Vector3.FORWARD
 var warmed_shotgun_impact: Node
 var cut_audio_contact := Vector3.INF
 var plane_slicing := PlaneSlicing.new()
+var slash_dragging := false
+var slash_start := Vector2.ZERO
+var slash_end := Vector2.ZERO
+var last_slash: Dictionary = {}
 
 func _ready() -> void:
 	# Prepare the first decal before interactive shooting begins.
@@ -119,6 +132,8 @@ func _ready() -> void:
 	# Sway and recoil run on rendered frames. Keep the flash and its trail at the same pose.
 	weapon.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_setup_pellet_traces()
+	if slice_cap_material != null:
+		plane_slicing.cap_material = slice_cap_material
 	testing = DisplayServer.get_name() == "headless" or "--smoke" in OS.get_cmdline_user_args()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--capture="): testing = true
@@ -287,6 +302,20 @@ func _clear_weapon_motion() -> void:
 	_clear_pellet_traces()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		if event.pressed and (testing or Input.mouse_mode == Input.MOUSE_MODE_CAPTURED):
+			_begin_slash()
+		elif not event.pressed and slash_dragging:
+			var start := slash_start
+			var end := slash_end
+			_cancel_slash()
+			last_slash = _slash_view(start, end)
+		return
+	if slash_dragging and event is InputEventMouseMotion:
+		var viewport := get_viewport().get_visible_rect()
+		slash_end = (slash_end + event.relative).clamp(viewport.position, viewport.end - Vector2.ONE)
+		slash_preview.set_point_position(1, slash_end)
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var look_delta: Vector2 = event.relative * mouse_sensitivity
 		player.rotate_y(-look_delta.x)
@@ -301,6 +330,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode if event.physical_keycode != 0 else event.keycode:
 			KEY_ESCAPE:
+				_cancel_slash()
 				Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 			KEY_R: _reset_target(active_station)
 			KEY_1: _jump_station(0)
@@ -326,6 +356,50 @@ func _tilt_slice(step: float) -> void:
 
 func _slice_camera() -> Dictionary:
 	var result := plane_slicing.slice_hit(self, _raycast_camera(), targets)
+	return _report_slice(result, "PLANE CUT %+d° · V cuts fragments · R restores" % plane_slicing.tilt_degrees)
+
+func _begin_slash() -> void:
+	slash_dragging = true
+	slash_start = get_viewport().get_visible_rect().get_center()
+	slash_end = slash_start
+	slash_preview.points = PackedVector2Array([slash_start, slash_end])
+	slash_preview.show()
+
+func _cancel_slash() -> void:
+	if slash_dragging:
+		slash_dragging = false
+		slash_preview.hide()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		_cancel_slash()
+
+func _slash_view(start: Vector2, end: Vector2) -> Dictionary:
+	var distance := start.distance_to(end)
+	if distance < MIN_SLASH_DRAG:
+		return _report_slice({"ok": false, "error": "Drag across the subject before releasing."}, "")
+	var origin := camera.project_ray_origin(start)
+	var start_ray := camera.project_ray_normal(start)
+	var end_on_ray := camera.project_ray_origin(end) + camera.project_ray_normal(end)
+	var normal := start_ray.cross(end_on_ray - origin).normalized()
+	if normal.is_zero_approx():
+		return _report_slice({"ok": false, "error": "The swipe did not define a plane."}, "")
+
+	var segments := clampi(ceili(distance / SLASH_SAMPLE_SPACING), 1, MAX_SLASH_SEGMENTS)
+	var space := get_world_3d().direct_space_state
+	var query := _make_hit_query(origin, start_ray, slash_reach)
+	for segment in range(segments + 1):
+		var screen_point := start.lerp(end, float(segment) / segments)
+		query.from = camera.project_ray_origin(screen_point)
+		query.to = query.from + camera.project_ray_normal(screen_point) * slash_reach
+		var hit := space.intersect_ray(query)
+		if hit.is_empty() or not hit.collider.has_meta(&"target_index"):
+			continue
+		var result := plane_slicing.slash_hit(self, hit, targets, Plane(normal, origin))
+		return _report_slice(result, "SLASH COMPLETE · R restores the subject")
+	return _report_slice({"ok": false, "error": "Swipe across a subject or fragment within reach."}, "")
+
+func _report_slice(result: Dictionary, success_text: String) -> Dictionary:
 	if not result.ok:
 		_feedback("SLICE REFUSED · " + result.error, true)
 		return result
@@ -333,7 +407,7 @@ func _slice_camera() -> Dictionary:
 	station_label.text = "%02d / %s" % [active_station + 1, targets[active_station].title]
 	_sync_hitboxes()
 	range_audio.play_body_impact(result.point, true)
-	_feedback("PLANE CUT %+d° · V cuts fragments · R restores" % plane_slicing.tilt_degrees)
+	_feedback(success_text)
 	return result
 
 func _shoot(blood_only := false, hide_only := false) -> Dictionary:
@@ -356,7 +430,7 @@ func _shoot(blood_only := false, hide_only := false) -> Dictionary:
 	var origin := camera.global_position
 	var basis := camera.global_basis
 	var forward := -basis.z
-	var query := _make_shot_query(origin, forward)
+	var query := _make_hit_query(origin, forward, shot_range)
 	var space := get_world_3d().direct_space_state
 	var hits: Array[Dictionary] = []
 	# Trace the whole shell before a native cut can change any colliders.
@@ -501,15 +575,15 @@ func _remove_oldest_impact() -> void:
 			receiver.remove_child(impact)
 		impact.queue_free()
 
-func _make_shot_query(origin: Vector3, direction: Vector3) -> PhysicsRayQueryParameters3D:
-	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * shot_range, shot_collision_mask)
+func _make_hit_query(origin: Vector3, direction: Vector3, distance: float) -> PhysicsRayQueryParameters3D:
+	var query := PhysicsRayQueryParameters3D.create(origin, origin + direction * distance, shot_collision_mask)
 	query.collide_with_areas = true
 	query.collide_with_bodies = true
 	query.exclude = [player.get_rid()]
 	return query
 
 func _raycast_camera() -> Dictionary:
-	var query := _make_shot_query(camera.global_position, -camera.global_basis.z)
+	var query := _make_hit_query(camera.global_position, -camera.global_basis.z, shot_range)
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func _update_aim_label() -> void:
@@ -565,6 +639,7 @@ func _on_post_dismemberment(bone: StringName, limb: Node, index: int) -> void:
 
 func _reset_target(index: int) -> void:
 	if index < 0 or index >= targets.size(): return
+	_cancel_slash()
 	var target: Dictionary = targets[index]
 	plane_slicing.restore(target)
 	if target.component != null:
@@ -580,6 +655,7 @@ func _reset_target(index: int) -> void:
 func _jump_station(index: int) -> void:
 	if index < 0 or index >= targets.size():
 		return
+	_cancel_slash()
 	active_station = index
 	var target: Dictionary = targets[index]
 	player.global_position = target.spawn.global_position
@@ -588,7 +664,7 @@ func _jump_station(index: int) -> void:
 	_look_at(target.aim.global_position)
 	_clear_weapon_motion()
 	station_label.text = "%02d / %s" % [index + 1, target.title]
-	_feedback("AIM AT A LIMB · left mouse fires · WASD moves")
+	_feedback("HOLD MMB AND DRAG TO SLASH · left mouse fires")
 
 func _look_at(position: Vector3) -> void:
 	var direction := (position - camera.global_position).normalized()

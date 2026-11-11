@@ -14,12 +14,11 @@ Reliable authority RPCs, explicit owning-peer requests, ordered snapshots, late 
 
 ## Experimental geometric slicing
 
-The `experiment/plane-slicing` branch adds a local FPS trial. It captures the
-current mesh pose, intersects triangles with the chosen plane, and closes
-each side with a cap. Detached pieces use convex collision and can be cut
-again. The demo accepts intact forearms and single-loop cuts. The captured
-remainder holds its pose until reset. Replication and articulated remainder
-animation remain outside the trial.
+The `experiment/plane-slicing` branch adds a local FPS trial. A swipe defines
+the cut plane, which intersects the full posed mesh and caps each supported
+closed contour. Each connected section becomes a rigid fragment with convex
+collision and can be slashed again. The forearm quick cut uses a static
+pose-captured remainder until reset. Both tools operate locally.
 
 ## Runtime dismemberment
 

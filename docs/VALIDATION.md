@@ -31,9 +31,25 @@ copies triangles that lie strictly on one side without clipping them.
 | Later cut, handler return | 162.4 ms | 89.8 ms |
 | Slice geometry and surface creation | 128.2 ms | 53.3 ms |
 
-Pose capture took about 23 ms. The demo still rebuilds the full posed mesh
-synchronously and holds the remainder in the captured pose until reset. The
-experimental tool has no replication path.
+Pose capture took about 23 ms. The forearm quick cut rebuilds the full posed
+mesh synchronously and holds the remainder in the captured pose until reset.
+
+### Whole-mesh swipes
+
+The geometry suite checks separate connected pieces, material and cap
+preservation, volume conservation, and direct pose capture. The demo test
+uses actual middle-mouse gestures and camera rays. A horizontal waist swipe
+produces three contours and four independently simulated pieces. A second
+swipe recuts the upper piece, and a diagonal swipe puts the caps on its
+sloped plane. The test also checks reach, short gestures, and reset.
+
+On the same 262,348-triangle character in Windows release Forward+, a
+waist swipe took a median **219 ms** to the next draw across three fresh
+processes. Recutting the upper piece took a median **67 ms** in the input
+handler. Direct posed slicing took **86 ms** in paired geometry calls,
+compared with **100 ms** when the snapshot was first published as an
+intermediate render mesh. Geometry and convex collision are still built
+synchronously in the demo.
 
 ## FPS cut latency
 

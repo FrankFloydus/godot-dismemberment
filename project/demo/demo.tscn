@@ -14,6 +14,10 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_tracer"]
 shader = ExtResource("8_tracer")
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_slice_cap"]
+albedo_color = Color(0.28, 0.045, 0.038, 1)
+roughness = 0.84
+
 [node name="FirstPersonDismembermentRange" type="Node3D" unique_id=960933614]
 script = ExtResource("1_controller")
 initial_scenario = 1
@@ -21,6 +25,8 @@ dismemberment_impulse = 9.44
 dismemberment_upward_boost = 5.0
 detached_limb_hit_impulse = 5.0
 tracer_material = SubResource("ShaderMaterial_tracer")
+slash_reach = 6.0
+slice_cap_material = SubResource("StandardMaterial3D_slice_cap")
 
 [node name="Range" parent="." unique_id=1590359172 instance=ExtResource("2_range")]
 

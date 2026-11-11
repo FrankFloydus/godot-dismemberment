@@ -98,6 +98,30 @@ PBR materials can be converted automatically while retaining their supported
 maps. Custom shaders must read the selected vertex color channel (blue by
 default) and the blood animation uniform themselves.
 
+## Experimental slicing API
+
+On `experiment/plane-slicing`, `MeshPlaneSlice.slice_pose(mesh_instance,
+skeleton, local_plane, cap_material)` cuts the current pose of a skinned
+mesh. `MeshPlaneSlice.slice_mesh_pieces(array_mesh, local_plane, cap_material)`
+cuts an already rigid fragment. On success, both return `positive_pieces`,
+`negative_pieces`, and `loop_count`. Each piece is a closed `ArrayMesh` in
+the input mesh's local coordinates. On refusal, the dictionary contains
+`error` and the source is untouched.
+
+For an animated sword, use the weapon sweep to find the contacted mesh and
+choose a plane through three points on the swept blade. Convert the point
+on that plane to mesh space with `mesh_instance.to_local(point)`. Convert
+its world normal with `(mesh_instance.global_basis.transposed() * normal).normalized()`.
+Build a local `Plane` from the resulting normal and point. The demo calls
+the same geometry API from its camera swipe, builds convex rigid bodies from
+the pieces, and publishes the swap after all colliders succeed.
+
+Use closed, consistently wound triangle meshes. Cuts that overlap a face
+or form nested or touching contours can be refused. Returned pieces are
+pose-baked, so games decide their physics, lifetime, animation, and
+replication. Time the operation on your own assets before using it for
+frequent combat.
+
 ## Gameplay and reset
 
 `pre_dismemberment(bone, velocity_change)` runs before the cut.
