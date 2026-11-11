@@ -6,7 +6,6 @@ const LAYERS_META := &"slice_interior_layers"
 const VISUAL_GROUP := &"slice_interior_visual"
 const CAP := "Slice Cap"
 const DEFAULT_CAP_PATH := "res://addons/godot-dismemberment/materials/slice_cap.tres"
-const BACKING := preload("res://demo/assets/slice_interior/backing.tres")
 const EPSILON := 0.000001
 const CONTOUR_TOLERANCE := 0.00005
 
@@ -17,12 +16,13 @@ static func prepare() -> void:
 
 static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Plane,
 		positive_visuals: Array, negative_visuals: Array, override_material: Material,
-		missing_bones: PackedStringArray = [], retain_unmatched := false) -> void:
+		missing_bones: PackedStringArray = [], retain_unmatched := false, cap_arrays: Dictionary = {},
+		poses: Array[Transform3D] = []) -> void:
 	var layers: Array[Dictionary] = []
 	if source.has_meta(LAYERS_META):
 		layers.assign(source.get_meta(LAYERS_META))
 	elif skeleton != null:
-		layers = InteriorAsset.posed_layers(source, skeleton)
+		layers = InteriorAsset.posed_layers(source, skeleton, poses)
 	if layers.is_empty():
 		return
 
@@ -31,6 +31,7 @@ static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Pla
 	var positive_caps: Array[Dictionary] = []
 	var negative_caps: Array[Dictionary] = []
 	var caps_loaded := false
+	var tissue_frames := {}
 	# Localized severing publishes one remainder, including shells on either
 	# side of the plane that were outside the selected limb.
 	var retained: MeshInstance3D = negative_visuals.front() if retain_unmatched else null
@@ -39,6 +40,7 @@ static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Pla
 				and _is_missing(skeleton, layer.bone, missing_bones):
 			continue
 		var mesh: ArrayMesh = layer.mesh
+		var source_surfaces: Array = layer.get("surfaces", [])
 		var transform: Transform3D = layer.transform
 		var normal_in_part := transform.basis.transposed() * local_plane.normal
 		var length := normal_in_part.length()
@@ -53,20 +55,24 @@ static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Pla
 		if absf(distance) < radius - EPSILON:
 			var material: Material = override_material if override_material != null else layer.cap_material
 			var result: Dictionary = ClassDB.class_call_static(&"MeshPlaneSlice", &"slice_mesh",
-				mesh, part_plane, material, EPSILON)
+				mesh, part_plane, material, EPSILON, true, source_surfaces)
 			var positive := result.get("positive_mesh") as ArrayMesh
 			var negative := result.get("negative_mesh") as ArrayMesh
 			if positive != null and negative != null:
+				var positive_surfaces: Array = result.positive_surfaces
+				var negative_surfaces: Array = result.negative_surfaces
 				if not caps_loaded:
-					positive_caps = _cap_footprints(positive_visuals, local_plane, axis)
-					negative_caps = _cap_footprints(negative_visuals, local_plane, axis)
+					positive_caps = _cap_footprints(positive_visuals, local_plane, axis, cap_arrays)
+					negative_caps = _cap_footprints(negative_visuals, local_plane, axis, cap_arrays)
 					caps_loaded = true
-				var footprint := _layer_footprint(positive, transform, axis)
+				var footprint := _layer_footprint(positive_surfaces.back()[Mesh.ARRAY_VERTEX], transform, axis)
 				var first := _find_cap(positive_caps, footprint)
 				var second := _find_cap(negative_caps, footprint)
 				if first != null and second != null:
-					_store_split(first, layer, positive)
-					_store_split(second, layer, negative)
+					_store_split(first, layer, positive, positive_surfaces, tissue_frames,
+						override_material == null, cap_arrays)
+					_store_split(second, layer, negative, negative_surfaces, tissue_frames,
+						override_material == null, cap_arrays)
 					continue
 				# A layer crossing the shell would draw over the surrounding skin.
 				# With localized severing, the plane may also cross unselected pieces.
@@ -79,13 +85,9 @@ static func apply(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Pla
 		var bounds: AABB = layer.get("source_bounds", transform * part_bounds)
 		destination = _find_volume(visuals, bounds)
 		if destination == null and not layer.has("source_bounds"):
-			bounds = _source_bounds(mesh, transform)
+			bounds = _source_bounds(mesh, transform, source_surfaces)
 			destination = _find_volume(visuals, bounds)
 		_store(destination if destination != null else retained, layer)
-
-	if override_material == null:
-		for visual: MeshInstance3D in positive_visuals + negative_visuals:
-			_apply_backing(visual)
 
 
 static func _is_missing(skeleton: Skeleton3D, name: StringName, missing: PackedStringArray) -> bool:
@@ -111,11 +113,12 @@ static func _find_volume(visuals: Array, volume: AABB) -> MeshInstance3D:
 	return closest
 
 
-static func _source_bounds(mesh: ArrayMesh, transform: Transform3D) -> AABB:
+static func _source_bounds(mesh: ArrayMesh, transform: Transform3D, surfaces: Array) -> AABB:
 	var bounds := AABB()
 	var has_bounds := false
 	for surface in mesh.get_surface_count():
-		var vertices: PackedVector3Array = mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+		var arrays: Array = surfaces[surface] if surface < surfaces.size() else mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		for point in vertices:
 			var position := transform * point
 			if has_bounds:
@@ -133,14 +136,15 @@ static func _project(point: Vector3, axis: int) -> Vector2:
 		_: return Vector2(point.x, point.y)
 
 
-static func _cap_footprints(visuals: Array, plane: Plane, axis: int) -> Array[Dictionary]:
+static func _cap_footprints(visuals: Array, plane: Plane, axis: int, cap_arrays: Dictionary) -> Array[Dictionary]:
 	var footprints: Array[Dictionary] = []
 	for visual: MeshInstance3D in visuals:
 		var mesh := visual.mesh as ArrayMesh
 		var surface := mesh.get_surface_count() - 1
 		if surface < 0 or mesh.surface_get_name(surface) != CAP:
 			continue
-		var arrays := mesh.surface_get_arrays(surface)
+		var caps: Dictionary = cap_arrays.get(visual, {})
+		var arrays: Array = caps[surface] if caps.has(surface) else mesh.surface_get_arrays(surface)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		if vertices.is_empty() or absf(plane.distance_to(vertices[0])) > CONTOUR_TOLERANCE:
 			continue
@@ -165,9 +169,7 @@ static func _cap_footprints(visuals: Array, plane: Plane, axis: int) -> Array[Di
 	return footprints
 
 
-static func _layer_footprint(mesh: ArrayMesh, transform: Transform3D, axis: int) -> PackedVector2Array:
-	var surface := mesh.get_surface_count() - 1
-	var vertices: PackedVector3Array = mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+static func _layer_footprint(vertices: PackedVector3Array, transform: Transform3D, axis: int) -> PackedVector2Array:
 	var points := PackedVector2Array()
 	points.resize(vertices.size())
 	for index in vertices.size():
@@ -206,11 +208,18 @@ static func _toggle_edge(edges: Dictionary, a: int, b: int) -> void:
 		edges[key] = Vector2i(a, b)
 
 
-static func _store_split(visual: MeshInstance3D, layer: Dictionary, mesh: ArrayMesh) -> void:
+static func _store_split(visual: MeshInstance3D, layer: Dictionary, mesh: ArrayMesh, surfaces: Array,
+		tissue_frames: Dictionary, use_shared_tissue: bool, cap_arrays: Dictionary) -> void:
 	var half := layer.duplicate()
 	half.mesh = mesh
-	half.source_bounds = _source_bounds(mesh, layer.transform)
-	half.visible_mesh = _exposed_caps(mesh, layer)
+	half.surfaces = surfaces
+	half.source_bounds = _source_bounds(mesh, layer.transform, surfaces)
+	var frames: Array = []
+	if use_shared_tissue:
+		if not tissue_frames.has(visual):
+			tissue_frames[visual] = _tissue_frames(visual.mesh, cap_arrays.get(visual, {}))
+		frames = tissue_frames[visual]
+	half.visible_mesh = _exposed_caps(mesh, surfaces, layer, frames)
 	_store(visual, half)
 
 
@@ -234,24 +243,59 @@ static func _store(visual: MeshInstance3D, layer: Dictionary) -> void:
 	visual.add_child(interior)
 
 
-static func _apply_backing(visual: MeshInstance3D) -> void:
-	var has_interiors := false
-	for child in visual.get_children():
-		if child.is_in_group(VISUAL_GROUP):
-			has_interiors = true
-			break
-	if not has_interiors:
-		return
-	var mesh := visual.mesh as ArrayMesh
+static func _tissue_frames(mesh: ArrayMesh, cap_arrays: Dictionary) -> Array[Dictionary]:
+	var frames: Array[Dictionary] = []
 	for surface in mesh.get_surface_count():
 		if mesh.surface_get_name(surface) != CAP:
 			continue
 		var material := mesh.surface_get_material(surface)
-		if material != null and material.resource_path == DEFAULT_CAP_PATH:
-			visual.set_surface_override_material(surface, BACKING)
+		if material == null or material.resource_path != DEFAULT_CAP_PATH:
+			continue
+		var arrays: Array = cap_arrays[surface] if cap_arrays.has(surface) else mesh.surface_get_arrays(surface)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		if vertices.is_empty() or normals.is_empty() or uv.is_empty() or tangents.size() < 4:
+			continue
+		var tangent := Vector3(tangents[0], tangents[1], tangents[2])
+		frames.append({
+			"point": vertices[0], "normal": normals[0], "uv": uv[0],
+			"tangent": tangent, "bitangent": normals[0].cross(tangent) * tangents[3],
+			"handedness": tangents[3],
+		})
+	return frames
 
 
-static func _exposed_caps(volume: ArrayMesh, layer: Dictionary) -> ArrayMesh:
+static func _align_tissue_surface(arrays: Array, transform: Transform3D, inverse: Basis,
+		source_normal: Vector3, frames: Array) -> bool:
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var source_point := transform * vertices[0]
+	for frame: Dictionary in frames:
+		var frame_normal: Vector3 = frame.normal
+		if frame_normal.dot(source_normal) < 0.999 or absf(frame_normal.dot(source_point - frame.point)) > CONTOUR_TOLERANCE:
+			continue
+		var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var tangent: Vector3 = frame.tangent
+		var bitangent: Vector3 = frame.bitangent
+		var origin_uv: Vector2 = frame.uv
+		var local_tangent := (inverse * tangent).normalized()
+		var handedness: float = frame.handedness * signf(transform.basis.determinant())
+		for i in vertices.size():
+			var delta: Vector3 = transform * vertices[i] - frame.point
+			uv[i] = origin_uv + Vector2(delta.dot(tangent), delta.dot(bitangent))
+			tangents[i * 4] = local_tangent.x
+			tangents[i * 4 + 1] = local_tangent.y
+			tangents[i * 4 + 2] = local_tangent.z
+			tangents[i * 4 + 3] = handedness
+		arrays[Mesh.ARRAY_TEX_UV] = uv
+		arrays[Mesh.ARRAY_TANGENT] = tangents
+		return true
+	return false
+
+
+static func _exposed_caps(volume: ArrayMesh, surfaces: Array, layer: Dictionary, frames: Array) -> ArrayMesh:
 	var visible := ArrayMesh.new()
 	var transform: Transform3D = layer.transform
 	var inverse := transform.basis.inverse()
@@ -259,15 +303,23 @@ static func _exposed_caps(volume: ArrayMesh, layer: Dictionary) -> ArrayMesh:
 	for surface in volume.get_surface_count():
 		if volume.surface_get_name(surface) != CAP:
 			continue
-		var arrays := volume.surface_get_arrays(surface)
+		# Keep the closed volume intact for the next recut.
+		var arrays: Array = surfaces[surface].duplicate()
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		if normals.is_empty():
 			continue
 		var normal := normals[0]
-		var outward := inverse * (normal_basis * normal).normalized()
+		var source_normal := (normal_basis * normal).normalized()
+		var outward := inverse * source_normal
 		var material := volume.surface_get_material(surface)
 		var profile: StringName = layer.get("profile", &"soft")
-		_round_face(arrays, normal, outward, layer.relief, profile, material == layer.cap_material)
+		var continuous_tissue := material != null and material.resource_path == DEFAULT_CAP_PATH \
+			and _align_tissue_surface(arrays, transform, inverse, source_normal, frames)
+		# The volumes still follow the cut. Their low relief sits inside the shared
+		# texture projection instead of reading as separately shaded islands.
+		var relief: float = layer.relief * (0.15 if continuous_tissue else 1.0)
+		var paint_rim: bool = not continuous_tissue and material == layer.cap_material
+		_round_face(arrays, normal, outward, relief, profile, paint_rim, 0.72 if continuous_tissue else 0.0)
 		visible.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		visible.surface_set_material(visible.get_surface_count() - 1, material)
 		visible.surface_set_name(visible.get_surface_count() - 1, CAP)
@@ -275,7 +327,7 @@ static func _exposed_caps(volume: ArrayMesh, layer: Dictionary) -> ArrayMesh:
 
 
 static func _round_face(arrays: Array, normal: Vector3, outward: Vector3, relief: float,
-		profile: StringName, paint_rim: bool) -> void:
+		profile: StringName, paint_rim: bool, normal_blend: float) -> void:
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var original_indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	var rim := _rim_edges(original_indices)
@@ -363,7 +415,7 @@ static func _round_face(arrays: Array, normal: Vector3, outward: Vector3, relief
 	var tangents := PackedFloat32Array()
 	tangents.resize(positions.size() * 4)
 	for index in normals.size():
-		var smooth := normals[index].normalized()
+		var smooth := normals[index].normalized().lerp(normal, normal_blend).normalized()
 		var smoothed_tangent := tangent.slide(smooth).normalized()
 		normals[index] = smooth
 		tangents[index * 4] = smoothed_tangent.x

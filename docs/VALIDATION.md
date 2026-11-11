@@ -103,6 +103,43 @@ has been freed. Before the fix Godot reported a null body when resolving its
 old collision exception. The regression now checks that both shots sever and
 every surviving fragment lists only live collision peers.
 
+### Mass range
+
+The viewport integration test uses the authored 30-station scene and sends
+real RMB, F, and R input events. It samples visibility during preparation,
+checks that the physics world stays active, and verifies the staged limb
+layers, the one-frame release, and the reset of both types of cut. The
+20-target fixture removes ten instances at runtime after verifying the
+saved scene. The unique-geometry fixture builds 30 independent source mesh
+resources and checks each detached limb against its own source mesh RID.
+
+On Godot 4.7 Forward+ at 1600 × 900 with VSync disabled, a paired Windows
+debug run on Ryzen 9 7900X and RTX 4090 released the same 73 limbs from 30
+targets. The shared fixture took 247 ms from RMB to release and had a 47 ms
+worst frame gap. The independent mesh fixture took 251 ms with a 51 ms
+worst gap. Release itself took 20 ms and 19 ms respectively. Independent
+meshes added 349 MiB of render-buffer memory before and after the action.
+The 20-target Windows release run with the original mesh launched 50 limbs
+after 217 ms, with 15 ms spent in release and a 53 ms worst frame gap.
+
+The full-detail F benchmark used the same target poses and cut choices before
+and after moving pose baking, surface assembly, and hull sampling to workers.
+Retaining CPU cap arrays also avoids reading those surfaces back from the
+renderer to apply the cut stain and place the interior. With the renderer
+settled, the full-detail Debug run went from 4.167 s to 1.647 s. Both runs
+produced 36 planes and 136 pieces and the optimized run published in 6.85 ms.
+
+A second same-seed rendered Debug comparison used the optimized build with
+the original body and the 19,990-triangle mass range body. Both cut all 30
+targets using 42 planes and produced 146 fragments in one visible frame.
+The original body took 1.536 s. The mass range body took 0.581 s and
+spent 11.86 ms publishing. The 95th-percentile and worst frame gaps were
+26 and 53 ms for that mass range run. A warm rerun with the same 9 ms
+preparation budget took 0.392 s, with a 22 ms 95th-percentile gap and a 27 ms
+worst gap. Cutting the moving ragdolls after RMB affected all 30 in both
+fixtures and took 0.939 s with the mass range body and 2.776 s with the
+original body.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

@@ -119,7 +119,8 @@ void GoreComponent::_bind_methods() {
     ClassDB::bind_method(D_METHOD("remove_blood_from_static_mesh", "mesh"), &GoreComponent::remove_blood_from_static_mesh);
     ClassDB::bind_method(D_METHOD("spawn_blood_decal", "location", "normal", "attachment", "splatter_direction"), &GoreComponent::spawn_blood_decal, DEFVAL(nullptr), DEFVAL(Vector3(0, 1, 0)));
     ClassDB::bind_method(D_METHOD("spawn_bool_decal", "location", "normal", "attachment", "splatter_direction"), &GoreComponent::spawn_bool_decal, DEFVAL(nullptr), DEFVAL(Vector3(0, 1, 0)));
-    ClassDB::bind_method(D_METHOD("spawn_blood_particles", "location", "direction"), &GoreComponent::spawn_blood_particles);
+    ClassDB::bind_method(D_METHOD("spawn_blood_particles", "location", "direction", "attach_to_scene"),
+            &GoreComponent::spawn_blood_particles, DEFVAL(true));
     ClassDB::bind_method(D_METHOD("spawn_blood_fx", "location", "direction", "hit_bone"), &GoreComponent::spawn_blood_fx, DEFVAL(StringName()));
     ClassDB::bind_static_method("GoreComponent", D_METHOD("sphere_mask", "center", "location", "radius", "hardness"), &GoreComponent::sphere_mask);
     ClassDB::bind_method(D_METHOD("begin_blood_animation"), &GoreComponent::begin_blood_animation);
@@ -580,7 +581,7 @@ CPUParticles3D *make_blood_burst_emitter(const BloodBurstEmitter &settings, cons
 
 } // namespace
 
-Node3D *GoreComponent::spawn_blood_particles(const Vector3 &p_location, const Vector3 &p_direction) {
+Node3D *GoreComponent::spawn_blood_particles(const Vector3 &p_location, const Vector3 &p_direction, bool p_attach_to_scene) {
     if (!is_inside_tree() || !p_location.is_finite() || !Math::is_finite(real_t(blood_particle_scale * 2.0))) {
         return nullptr;
     }
@@ -648,7 +649,7 @@ Node3D *GoreComponent::spawn_blood_particles(const Vector3 &p_location, const Ve
     effect->set_name("BloodBurst");
     effect->set_as_top_level(true);
     effect->set_transform(Transform3D(orientation.scaled(Vector3(scale, scale, scale)), p_location));
-    parent->add_child(effect);
+    if (p_attach_to_scene) parent->add_child(effect);
 
     Timer *timer = memnew(Timer);
     timer->set_wait_time(cleanup_delay);

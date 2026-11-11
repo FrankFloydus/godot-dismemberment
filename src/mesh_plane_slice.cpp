@@ -818,8 +818,7 @@ bool append_surface(const Ref<ArrayMesh> &mesh, const Array &arrays, const Ref<M
     return true;
 }
 
-bool publish_side(const Ref<ArrayMesh> &mesh, const SurfaceInput &source, const SurfaceTriangles &side, const SliceGeometry &geometry) {
-    if (side.indices.empty()) return true;
+Array pack_side(const SurfaceInput &source, const SurfaceTriangles &side, const SliceGeometry &geometry) {
     Array arrays;
     arrays.resize(Mesh::ARRAY_MAX);
     PackedVector3Array positions;
@@ -836,12 +835,19 @@ bool publish_side(const Ref<ArrayMesh> &mesh, const SurfaceInput &source, const 
     write_interpolated(source.colors, side, arrays, Mesh::ARRAY_COLOR);
     write_interpolated(source.uv, side, arrays, Mesh::ARRAY_TEX_UV);
     write_interpolated(source.uv2, side, arrays, Mesh::ARRAY_TEX_UV2);
+    return arrays;
+}
+
+bool publish_side(const Ref<ArrayMesh> &mesh, const SurfaceInput &source, const SurfaceTriangles &side,
+        const SliceGeometry &geometry, Array *cpu_surfaces = nullptr) {
+    if (side.indices.empty()) return true;
+    const Array arrays = pack_side(source, side, geometry);
+    if (cpu_surfaces) cpu_surfaces->push_back(arrays);
     return append_surface(mesh, arrays, source.material, source.name);
 }
 
-bool publish_cap(const Ref<ArrayMesh> &mesh, const SliceGeometry &geometry, bool positive, const Ref<Material> &material,
+Array pack_cap(const SliceGeometry &geometry, bool positive,
         const std::vector<int> &cap_indices, std::vector<int> &mapping) {
-    if (cap_indices.empty()) return true;
     Array arrays;
     arrays.resize(Mesh::ARRAY_MAX);
     PackedVector3Array positions, normals;
@@ -879,6 +885,14 @@ bool publish_cap(const Ref<ArrayMesh> &mesh, const SliceGeometry &geometry, bool
     arrays[Mesh::ARRAY_TANGENT] = tangents;
     arrays[Mesh::ARRAY_TEX_UV] = uv;
     arrays[Mesh::ARRAY_INDEX] = indices;
+    return arrays;
+}
+
+bool publish_cap(const Ref<ArrayMesh> &mesh, const SliceGeometry &geometry, bool positive, const Ref<Material> &material,
+        const std::vector<int> &cap_indices, std::vector<int> &mapping, Array *cpu_surfaces = nullptr) {
+    if (cap_indices.empty()) return true;
+    const Array arrays = pack_cap(geometry, positive, cap_indices, mapping);
+    if (cpu_surfaces) cpu_surfaces->push_back(arrays);
     return append_surface(mesh, arrays, material, "Slice Cap");
 }
 
@@ -918,20 +932,33 @@ struct ConnectedSide {
     size_t seam_root(int seam) { return components.root(welded_count + seam); }
 };
 
-bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInput> &input, const SliceGeometry &geometry,
-        bool positive, const Ref<Material> &cap_material) {
+struct PieceSurface {
+    Array arrays;
+    Ref<Material> material;
+    String name;
+};
+
+struct PreparedSlicePiece {
+    std::vector<PieceSurface> surfaces;
+    Array cap;
+    PackedVector3Array hull;
+};
+
+constexpr int64_t HULL_POINT_BUDGET = 98;
+
+bool prepare_pieces(std::vector<PreparedSlicePiece> &pieces, const std::vector<SurfaceInput> &input,
+        const SliceGeometry &geometry, bool positive, bool prepare_hulls) {
     constexpr size_t unassigned = std::numeric_limits<size_t>::max();
     ConnectedSide side(input, geometry, positive);
     auto &piece_membership = side.vertex_ids;
 
     std::vector<size_t> piece_for_root(side.welded_count + geometry.seam_positions.size(), unassigned);
-    std::vector<Ref<ArrayMesh>> pieces;
     for (auto &vertices : piece_membership) {
         for (size_t &vertex : vertices) {
             size_t &piece = piece_for_root[side.components.root(vertex)];
             if (piece == unassigned) {
                 piece = pieces.size();
-                pieces.emplace_back().instantiate();
+                pieces.emplace_back();
             }
             vertex = piece;
         }
@@ -946,8 +973,9 @@ bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInpu
         const SurfaceTriangles &triangles = (positive ? split.positive : split.negative).triangles;
         const auto &vertices = piece_membership[surface];
         if (vertices.empty()) continue;
+        const SurfaceInput &source = input[surface];
         if (std::all_of(vertices.begin(), vertices.end(), [&](size_t piece) { return piece == vertices.front(); })) {
-            if (!publish_side(pieces[vertices.front()], input[surface], triangles, geometry)) return false;
+            pieces[vertices.front()].surfaces.push_back({ pack_side(source, triangles, geometry), source.material, source.name });
             continue;
         }
 
@@ -974,7 +1002,7 @@ bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInpu
             indices.insert(indices.end(), { local_indices[a], local_indices[b], local_indices[c] });
         }
         for (const SurfaceGroup &group : groups) {
-            if (!publish_side(pieces[group.piece], input[surface], group.triangles, geometry)) return false;
+            pieces[group.piece].surfaces.push_back({ pack_side(source, group.triangles, geometry), source.material, source.name });
             group_for_piece[group.piece] = unassigned;
         }
     }
@@ -990,10 +1018,46 @@ bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInpu
     // lookup can be shared across the disjoint caps of this half-space.
     std::vector<int> cap_mapping(geometry.seam_positions.size(), -1);
     for (size_t piece = 0; piece < pieces.size(); ++piece) {
-        if (!publish_cap(pieces[piece], geometry, positive, cap_material, cap_by_piece[piece], cap_mapping)) return false;
-        output.push_back(pieces[piece]);
+        PreparedSlicePiece &prepared = pieces[piece];
+        if (!cap_by_piece[piece].empty()) prepared.cap = pack_cap(geometry, positive, cap_by_piece[piece], cap_mapping);
+        if (prepare_hulls) {
+            PackedVector3Array points;
+            for (const PieceSurface &surface : prepared.surfaces) points.append_array(surface.arrays[Mesh::ARRAY_VERTEX]);
+            if (!prepared.cap.is_empty()) points.append_array(prepared.cap[Mesh::ARRAY_VERTEX]);
+            PackedVector3Array hull = MeshPlaneSlice::reduce_collision_hull(points);
+            if (hull.size() >= 4 && hull.size() <= HULL_POINT_BUDGET) prepared.hull = std::move(hull);
+        }
     }
-    return !output.is_empty();
+    return !pieces.empty();
+}
+
+bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<PreparedSlicePiece> &pieces,
+        const Ref<Material> &cap_material) {
+    for (const PreparedSlicePiece &piece : pieces) {
+        Ref<ArrayMesh> mesh;
+        mesh.instantiate();
+        for (const PieceSurface &surface : piece.surfaces) {
+            if (!append_surface(mesh, surface.arrays, surface.material, surface.name)) return false;
+        }
+        if (!piece.cap.is_empty() && !append_surface(mesh, piece.cap, cap_material, "Slice Cap")) return false;
+        output.push_back(mesh);
+    }
+    return true;
+}
+
+Array piece_cap_arrays(const std::vector<PreparedSlicePiece> &pieces) {
+    Array result;
+    result.resize(pieces.size());
+    for (size_t piece = 0; piece < pieces.size(); ++piece) {
+        const PreparedSlicePiece &prepared = pieces[piece];
+        Dictionary caps;
+        for (size_t surface = 0; surface < prepared.surfaces.size(); ++surface) {
+            if (prepared.surfaces[surface].name == "Slice Cap") caps[int(surface)] = prepared.surfaces[surface].arrays;
+        }
+        if (!prepared.cap.is_empty()) caps[int(prepared.surfaces.size())] = prepared.cap;
+        result[piece] = caps;
+    }
+    return result;
 }
 
 double valid_plane_length(const Plane &plane, double epsilon) {
@@ -1128,13 +1192,15 @@ Dictionary run_sever(std::vector<SurfaceInput> &input, const Plane &plane, doubl
 }
 
 Dictionary publish_slice_result(const std::vector<SurfaceInput> &input, const SliceGeometry &geometry,
-        const Ref<Material> &cap_material, bool separate) {
+        const Ref<Material> &cap_material, bool separate, bool include_surface_arrays = false) {
     const Ref<Material> material = resolve_cap_material(cap_material);
     Dictionary result;
     if (separate) {
+        std::vector<PreparedSlicePiece> positive_pieces, negative_pieces;
         TypedArray<ArrayMesh> positive, negative;
-        if (!publish_pieces(positive, input, geometry, true, material) ||
-                !publish_pieces(negative, input, geometry, false, material)) {
+        if (!prepare_pieces(positive_pieces, input, geometry, true, false) ||
+                !prepare_pieces(negative_pieces, input, geometry, false, false) ||
+                !publish_pieces(positive, positive_pieces, material) || !publish_pieces(negative, negative_pieces, material)) {
             return failure("Could not create the connected sliced meshes.");
         }
         result["positive_pieces"] = positive;
@@ -1143,37 +1209,42 @@ Dictionary publish_slice_result(const std::vector<SurfaceInput> &input, const Sl
         Ref<ArrayMesh> positive, negative;
         positive.instantiate();
         negative.instantiate();
+        Array positive_surfaces, negative_surfaces;
+        Array *positive_cpu = include_surface_arrays ? &positive_surfaces : nullptr;
+        Array *negative_cpu = include_surface_arrays ? &negative_surfaces : nullptr;
         for (size_t i = 0; i < input.size(); ++i) {
-            if (!publish_side(positive, input[i], geometry.surfaces[i].positive.triangles, geometry) ||
-                    !publish_side(negative, input[i], geometry.surfaces[i].negative.triangles, geometry)) {
+            if (!publish_side(positive, input[i], geometry.surfaces[i].positive.triangles, geometry, positive_cpu) ||
+                    !publish_side(negative, input[i], geometry.surfaces[i].negative.triangles, geometry, negative_cpu)) {
                 return failure("Could not create the sliced mesh surfaces.");
             }
         }
         std::vector<int> cap_mapping(geometry.seam_positions.size(), -1);
-        if (!publish_cap(positive, geometry, true, material, geometry.cap_indices, cap_mapping)) {
+        if (!publish_cap(positive, geometry, true, material, geometry.cap_indices, cap_mapping, positive_cpu)) {
             return failure("Could not create the slice caps.");
         }
         std::fill(cap_mapping.begin(), cap_mapping.end(), -1);
-        if (!publish_cap(negative, geometry, false, material, geometry.cap_indices, cap_mapping)) {
+        if (!publish_cap(negative, geometry, false, material, geometry.cap_indices, cap_mapping, negative_cpu)) {
             return failure("Could not create the slice caps.");
         }
         result["positive_mesh"] = positive;
         result["negative_mesh"] = negative;
+        if (include_surface_arrays) {
+            result["positive_surfaces"] = positive_surfaces;
+            result["negative_surfaces"] = negative_surfaces;
+        }
     }
     result["loop_count"] = geometry.loop_count();
     return result;
 }
 
 Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, double normal_length,
-        const Ref<Material> &cap_material, double epsilon, bool separate) {
+        const Ref<Material> &cap_material, double epsilon, bool separate, bool include_surface_arrays = false) {
     SliceGeometry geometry(plane, normal_length, epsilon);
     if (const char *error = geometry.run(input)) return failure(error);
-    return publish_slice_result(input, geometry, cap_material, separate);
+    return publish_slice_result(input, geometry, cap_material, separate, include_surface_arrays);
 }
 
-const char *read_pose_input(MeshInstance3D *mesh, Skeleton3D *skeleton, std::vector<SurfaceInput> &input) {
-    std::vector<MeshPoseSurface> posed;
-    if (!MeshPartition::snapshot_pose_surfaces(mesh, skeleton, posed)) return "The posed mesh could not be captured.";
+const char *read_pose_surfaces(const std::vector<MeshPoseSurface> &posed, std::vector<SurfaceInput> &input) {
     input.resize(posed.size());
     for (size_t surface = 0; surface < posed.size(); ++surface) {
         if (!input[surface].read(posed[surface].arrays, posed[surface].material, posed[surface].name)) return INVALID_SURFACE;
@@ -1181,22 +1252,52 @@ const char *read_pose_input(MeshInstance3D *mesh, Skeleton3D *skeleton, std::vec
     return nullptr;
 }
 
+bool fit_cut_plane(Plane &plane, double normal_length, const std::vector<SurfaceInput> &input) {
+    // A world-space physics bone can lie outside the evaluated visible shell.
+    const std::array<double, 3> normal = {
+        double(plane.normal.x) / normal_length,
+        double(plane.normal.y) / normal_length,
+        double(plane.normal.z) / normal_length,
+    };
+    double minimum = std::numeric_limits<double>::infinity();
+    double maximum = -minimum;
+    for (const SurfaceInput &surface : input) {
+        for (const Vector3 &point : surface.positions) {
+            const double projection = normal[0] * point.x + normal[1] * point.y + normal[2] * point.z;
+            minimum = std::min(minimum, projection);
+            maximum = std::max(maximum, projection);
+        }
+    }
+    const double span = maximum - minimum;
+    if (!std::isfinite(span) || span <= 0.0) return false;
+    const double middle = minimum + span * 0.5;
+    const double margin = span * 0.14;
+    const double distance = std::clamp(double(plane.d) / normal_length, middle - margin, middle + margin);
+    plane = Plane(Vector3(real_t(normal[0]), real_t(normal[1]), real_t(normal[2])), real_t(distance));
+    return plane.is_finite();
+}
+
 Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon, bool separate,
-        const Vector3 *seed = nullptr, double max_distance = 0.0) {
+        const Vector3 *seed = nullptr, double max_distance = 0.0, bool include_surface_arrays = false,
+        const Array &source_surfaces = Array()) {
     if (mesh.is_null() || mesh->get_surface_count() == 0) return failure("A nonempty ArrayMesh is required.");
     if (mesh->get_blend_shape_count() != 0) return failure("The rigid slicer does not accept blend shapes.");
     const double normal_length = valid_plane_length(plane, epsilon);
     if (normal_length == 0) return failure(INVALID_PLANE);
     const int count = mesh->get_surface_count();
+    if (!source_surfaces.is_empty() && source_surfaces.size() != count) return failure(INVALID_SURFACE);
     std::vector<SurfaceInput> input(count);
     for (int surface = 0; surface < count; ++surface) {
+        const Variant cached = source_surfaces.is_empty() ? Variant() : source_surfaces[surface];
+        if (!source_surfaces.is_empty() && cached.get_type() != Variant::ARRAY) return failure(INVALID_SURFACE);
+        const Array arrays = source_surfaces.is_empty() ? mesh->surface_get_arrays(surface) : Array(cached);
         if (mesh->surface_get_primitive_type(surface) != Mesh::PRIMITIVE_TRIANGLES ||
-                !input[surface].read(mesh->surface_get_arrays(surface), mesh->surface_get_material(surface), mesh->surface_get_name(surface))) {
+                !input[surface].read(arrays, mesh->surface_get_material(surface), mesh->surface_get_name(surface))) {
             return failure(INVALID_SURFACE);
         }
     }
     if (seed) return run_sever(input, plane, normal_length, epsilon, *seed, max_distance, cap_material);
-    return run_slice(input, plane, normal_length, cap_material, epsilon, separate);
+    return run_slice(input, plane, normal_length, cap_material, epsilon, separate, include_surface_arrays);
 }
 
 bool spans_solid_hull(const PackedVector3Array &points) {
@@ -1239,17 +1340,44 @@ bool spans_solid_hull(const PackedVector3Array &points) {
 }
 
 struct MeshPlaneSliceJob::State {
-    std::vector<SurfaceInput> input;
-    SliceGeometry geometry;
+    MeshPoseCapture captured;
+    std::vector<PreparedSlicePiece> positive;
+    std::vector<PreparedSlicePiece> negative;
+    Plane plane;
+    double normal_length;
+    double epsilon;
+    bool prepare_hulls;
+    bool fit_to_pose;
+    int loop_count = 0;
     const char *error = nullptr;
 
-    State(const Plane &plane, double normal_length, double epsilon) : geometry(plane, normal_length, epsilon) {}
+    State(const Plane &plane, double normal_length, double epsilon, bool prepare_hulls, bool fit_to_pose) :
+            plane(plane), normal_length(normal_length), epsilon(epsilon), prepare_hulls(prepare_hulls), fit_to_pose(fit_to_pose) {}
+
+    const char *prepare() {
+        std::vector<SurfaceInput> input;
+        if (!MeshPartition::bake_pose_input(captured)) return "The posed mesh could not be captured.";
+        if (const char *error = read_pose_surfaces(captured.surfaces, input)) return error;
+        if (fit_to_pose) {
+            if (!fit_cut_plane(plane, normal_length, input)) return "The posed mesh has no extent along the plane normal.";
+            normal_length = valid_plane_length(plane, epsilon);
+        }
+        SliceGeometry geometry(plane, normal_length, epsilon);
+        if (const char *error = geometry.run(input)) return error;
+        if (!prepare_pieces(positive, input, geometry, true, prepare_hulls) ||
+                !prepare_pieces(negative, input, geometry, false, prepare_hulls)) {
+            return "Could not create the connected sliced meshes.";
+        }
+        loop_count = geometry.loop_count();
+        return nullptr;
+    }
 };
 
 MeshPlaneSliceJob::MeshPlaneSliceJob() = default;
 MeshPlaneSliceJob::~MeshPlaneSliceJob() = default;
 
 void MeshPlaneSliceJob::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_cut_plane"), &MeshPlaneSliceJob::get_cut_plane);
     ClassDB::bind_method(D_METHOD("compute"), &MeshPlaneSliceJob::compute);
     ClassDB::bind_method(D_METHOD("finish", "cap_material"), &MeshPlaneSliceJob::finish, DEFVAL(Ref<Material>()));
 }
@@ -1257,10 +1385,17 @@ void MeshPlaneSliceJob::_bind_methods() {
 bool MeshPlaneSliceJob::compute() {
     Phase expected = Phase::READY;
     if (!phase.compare_exchange_strong(expected, Phase::RUNNING)) return false;
-    state->error = state->geometry.run(state->input);
+    state->error = state->prepare();
+    state->captured = {};
+    cut_plane = state->plane;
     const bool valid = state->error == nullptr;
     phase.store(Phase::COMPLETE);
     return valid;
+}
+
+Plane MeshPlaneSliceJob::get_cut_plane() const {
+    const Phase current = phase.load();
+    return current == Phase::COMPLETE || current == Phase::FINISHED ? cut_plane : requested_plane;
 }
 
 Dictionary MeshPlaneSliceJob::finish(const Ref<Material> &cap_material) {
@@ -1268,12 +1403,31 @@ Dictionary MeshPlaneSliceJob::finish(const Ref<Material> &cap_material) {
     if (!phase.compare_exchange_strong(expected, Phase::FINISHED)) return failure("The slice job has no pending result.");
     const auto completed = std::move(state);
     if (completed->error) return failure(completed->error);
-    return publish_slice_result(completed->input, completed->geometry, cap_material, true);
+    const Ref<Material> material = resolve_cap_material(cap_material);
+    TypedArray<ArrayMesh> positive, negative;
+    if (!publish_pieces(positive, completed->positive, material) || !publish_pieces(negative, completed->negative, material)) {
+        return failure("Could not create the connected sliced meshes.");
+    }
+    Dictionary result;
+    result["positive_pieces"] = positive;
+    result["negative_pieces"] = negative;
+    result["loop_count"] = completed->loop_count;
+    result["positive_cap_arrays"] = piece_cap_arrays(completed->positive);
+    result["negative_cap_arrays"] = piece_cap_arrays(completed->negative);
+    if (completed->prepare_hulls) {
+        Array positive_hulls, negative_hulls;
+        for (const PreparedSlicePiece &piece : completed->positive) positive_hulls.push_back(piece.hull);
+        for (const PreparedSlicePiece &piece : completed->negative) negative_hulls.push_back(piece.hull);
+        result["positive_hulls"] = positive_hulls;
+        result["negative_hulls"] = negative_hulls;
+    }
+    return result;
 }
 
 void MeshPlaneSlice::_bind_methods() {
-    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_mesh", "mesh", "plane", "cap_material", "epsilon"),
-            &MeshPlaneSlice::slice_mesh, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
+    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_mesh", "mesh", "plane", "cap_material", "epsilon",
+            "include_surface_arrays", "source_surfaces"), &MeshPlaneSlice::slice_mesh,
+            DEFVAL(Ref<Material>()), DEFVAL(0.000001), DEFVAL(false), DEFVAL(Array()));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_mesh_pieces", "mesh", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_mesh_pieces, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
     ClassDB::bind_static_method("MeshPlaneSlice",
@@ -1281,14 +1435,16 @@ void MeshPlaneSlice::_bind_methods() {
             &MeshPlaneSlice::sever_connected_piece, DEFVAL(Ref<Material>()), DEFVAL(0.000001), DEFVAL(0.15));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_pose", "mesh", "skeleton", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_pose, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
-    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("capture_pose_job", "mesh", "skeleton", "plane", "epsilon"),
-            &MeshPlaneSlice::capture_pose_job, DEFVAL(0.000001));
+    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("capture_pose_job", "mesh", "skeleton", "plane", "epsilon",
+            "prepare_hulls", "collapsed_roots", "fit_to_pose"),
+            &MeshPlaneSlice::capture_pose_job, DEFVAL(0.000001), DEFVAL(false), DEFVAL(PackedStringArray()), DEFVAL(false));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("reduce_collision_hull", "points"),
             &MeshPlaneSlice::reduce_collision_hull);
 }
 
-Dictionary MeshPlaneSlice::slice_mesh(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon) {
-    return slice_rigid(mesh, plane, cap_material, epsilon, false);
+Dictionary MeshPlaneSlice::slice_mesh(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material,
+        double epsilon, bool include_surface_arrays, const Array &source_surfaces) {
+    return slice_rigid(mesh, plane, cap_material, epsilon, false, nullptr, 0.0, include_surface_arrays, source_surfaces);
 }
 
 Dictionary MeshPlaneSlice::slice_mesh_pieces(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon) {
@@ -1307,19 +1463,22 @@ Dictionary MeshPlaneSlice::slice_pose(MeshInstance3D *mesh, Skeleton3D *skeleton
         const Ref<Material> &cap_material, double epsilon) {
     const double normal_length = valid_plane_length(plane, epsilon);
     if (normal_length == 0) return failure(INVALID_PLANE);
+    std::vector<MeshPoseSurface> posed;
+    if (!MeshPartition::snapshot_pose_surfaces(mesh, skeleton, posed)) return failure("The posed mesh could not be captured.");
     std::vector<SurfaceInput> input;
-    if (const char *error = read_pose_input(mesh, skeleton, input)) return failure(error);
+    if (const char *error = read_pose_surfaces(posed, input)) return failure(error);
     return run_slice(input, plane, normal_length, cap_material, epsilon, true);
 }
 
 Ref<MeshPlaneSliceJob> MeshPlaneSlice::capture_pose_job(MeshInstance3D *mesh, Skeleton3D *skeleton, const Plane &plane,
-        double epsilon) {
+        double epsilon, bool prepare_hulls, const PackedStringArray &collapsed_roots, bool fit_to_pose) {
     const double normal_length = valid_plane_length(plane, epsilon);
     if (normal_length == 0) return {};
-    auto state = std::make_unique<MeshPlaneSliceJob::State>(plane, normal_length, epsilon);
-    if (read_pose_input(mesh, skeleton, state->input)) return {};
+    auto state = std::make_unique<MeshPlaneSliceJob::State>(plane, normal_length, epsilon, prepare_hulls, fit_to_pose);
+    if (!MeshPartition::capture_pose_input(mesh, skeleton, state->captured, collapsed_roots)) return {};
     Ref<MeshPlaneSliceJob> job;
     job.instantiate();
+    job->requested_plane = plane;
     job->state = std::move(state);
     job->phase.store(MeshPlaneSliceJob::Phase::READY);
     return job;
@@ -1327,21 +1486,33 @@ Ref<MeshPlaneSliceJob> MeshPlaneSlice::capture_pose_job(MeshInstance3D *mesh, Sk
 
 PackedVector3Array MeshPlaneSlice::reduce_collision_hull(const PackedVector3Array &points) {
     // The shell of the 5 x 5 x 5 direction grid has 98 directions.
-    constexpr size_t point_budget = 98;
     const int64_t count = points.size();
-    if (count <= int64_t(point_budget)) return points;
+    if (count <= HULL_POINT_BUDGET) return points;
 
     const Vector3 *vertices = points.ptr();
     const double safe_coordinate = std::numeric_limits<double>::max() / 8.0;
-    for (int64_t i = 0; i < count; ++i) {
-        const Vector3 &point = vertices[i];
-        if (!point.is_finite() || std::abs(double(point.x)) > safe_coordinate ||
-                std::abs(double(point.y)) > safe_coordinate || std::abs(double(point.z)) > safe_coordinate) {
-            return points;
+    constexpr int64_t block_size = 64;
+    struct PointBounds {
+        Vector3 minimum;
+        Vector3 maximum;
+    };
+    std::vector<PointBounds> bounds;
+    bounds.reserve(1 + (count - 1) / block_size);
+    for (int64_t begin = 0; begin < count; begin += block_size) {
+        PointBounds block{ vertices[begin], vertices[begin] };
+        for (int64_t i = begin; i < std::min(begin + block_size, count); ++i) {
+            const Vector3 &point = vertices[i];
+            if (!point.is_finite() || std::abs(double(point.x)) > safe_coordinate ||
+                    std::abs(double(point.y)) > safe_coordinate || std::abs(double(point.z)) > safe_coordinate) {
+                return points;
+            }
+            block.minimum = block.minimum.min(point);
+            block.maximum = block.maximum.max(point);
         }
+        bounds.push_back(block);
     }
 
-    std::array<int64_t, point_budget> selected;
+    std::array<int64_t, HULL_POINT_BUDGET> selected;
     size_t selected_count = 0;
     for (int x = -2; x <= 2; ++x) {
         for (int y = -2; y <= 2; ++y) {
@@ -1352,11 +1523,22 @@ PackedVector3Array MeshPlaneSlice::reduce_collision_hull(const PackedVector3Arra
                 };
                 int64_t best_index = 0;
                 double best_projection = project(vertices[0]);
-                for (int64_t i = 1; i < count; ++i) {
-                    const double projection = project(vertices[i]);
-                    if (projection > best_projection) {
-                        best_projection = projection;
-                        best_index = i;
+                for (size_t block_index = 0; block_index < bounds.size(); ++block_index) {
+                    const PointBounds &block = bounds[block_index];
+                    const Vector3 extreme(x < 0 ? block.minimum.x : block.maximum.x,
+                            y < 0 ? block.minimum.y : block.maximum.y,
+                            z < 0 ? block.minimum.z : block.maximum.z);
+                    // A block that cannot improve the projection cannot affect the
+                    // support point. Visit blocks in source order to retain ties.
+                    if (project(extreme) <= best_projection) continue;
+                    const int64_t begin = int64_t(block_index) * block_size;
+                    const int64_t end = std::min(begin + block_size, count);
+                    for (int64_t i = begin; i < end; ++i) {
+                        const double projection = project(vertices[i]);
+                        if (projection > best_projection) {
+                            best_projection = projection;
+                            best_index = i;
+                        }
                     }
                 }
                 const auto end = selected.begin() + selected_count;

@@ -3,157 +3,63 @@
 [ext_resource type="ArrayMesh" path="res://demo/assets/slice_interior/muscle.res" id="1_muscle"]
 [ext_resource type="ArrayMesh" path="res://demo/assets/slice_interior/lobe.res" id="2_lobe"]
 [ext_resource type="ArrayMesh" path="res://demo/assets/slice_interior/core.res" id="3_core"]
-[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/normal.png" id="4_normal"]
-[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/roughness.png" id="5_roughness"]
-[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/albedo.png" id="6_albedo"]
-[ext_resource type="Shader" path="res://demo/fps_interior_tissue.gdshader" id="7_tissue"]
-
-[sub_resource type="ShaderMaterial" id="Material_Fascia"]
-resource_name = "Fascia"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.411, 0.222, 0.188, 1)
-shader_parameter/roughness_base = 0.61
-shader_parameter/specular_strength = 0.32
-shader_parameter/normal_strength = 0.62
-shader_parameter/color_detail_strength = 0.41
-shader_parameter/detail_scale = Vector2(6.6, 10.8)
-
-[sub_resource type="ShaderMaterial" id="Material_Muscle"]
-resource_name = "Muscle"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.369, 0.108, 0.124, 1)
-shader_parameter/roughness_base = 0.54
-shader_parameter/specular_strength = 0.37
-shader_parameter/normal_strength = 0.73
-shader_parameter/color_detail_strength = 0.47
-shader_parameter/detail_scale = Vector2(6.4, 10.6)
-
-[sub_resource type="ShaderMaterial" id="Material_DeepMuscle"]
-resource_name = "DeepMuscle"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.329, 0.086, 0.114, 1)
-shader_parameter/roughness_base = 0.47
-shader_parameter/specular_strength = 0.39
-shader_parameter/normal_strength = 0.66
-shader_parameter/color_detail_strength = 0.45
-shader_parameter/detail_scale = Vector2(7.2, 11.5)
-
-[sub_resource type="ShaderMaterial" id="Material_SoftTissue"]
-resource_name = "SoftTissue"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.285, 0.081, 0.104, 1)
-shader_parameter/roughness_base = 0.4
-shader_parameter/specular_strength = 0.43
-shader_parameter/normal_strength = 0.45
-shader_parameter/color_detail_strength = 0.46
-shader_parameter/detail_scale = Vector2(5.7, 6.5)
-
-[sub_resource type="ShaderMaterial" id="Material_Lung"]
-resource_name = "Lung"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.347, 0.132, 0.161, 1)
-shader_parameter/roughness_base = 0.48
-shader_parameter/specular_strength = 0.37
-shader_parameter/normal_strength = 0.62
-shader_parameter/color_detail_strength = 0.5
-shader_parameter/detail_scale = Vector2(8.2, 8.2)
-
-[sub_resource type="ShaderMaterial" id="Material_Cortex"]
-resource_name = "Cortex"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.478, 0.366, 0.287, 1)
-shader_parameter/roughness_base = 0.69
-shader_parameter/specular_strength = 0.26
-shader_parameter/normal_strength = 0.47
-shader_parameter/color_detail_strength = 0.31
-shader_parameter/detail_scale = Vector2(8.5, 9.5)
-
-[sub_resource type="ShaderMaterial" id="Material_Marrow"]
-resource_name = "Marrow"
-shader = ExtResource("7_tissue")
-shader_parameter/detail_color = ExtResource("6_albedo")
-shader_parameter/detail_normal = ExtResource("4_normal")
-shader_parameter/detail_roughness = ExtResource("5_roughness")
-shader_parameter/tissue_color = Color(0.352, 0.193, 0.164, 1)
-shader_parameter/roughness_base = 0.58
-shader_parameter/specular_strength = 0.31
-shader_parameter/normal_strength = 0.56
-shader_parameter/color_detail_strength = 0.5
-shader_parameter/detail_scale = Vector2(11.0, 11.0)
+[ext_resource type="Material" path="res://addons/godot-dismemberment/materials/slice_cap.tres" id="4_tissue"]
 
 [node name="HumanoidSliceInterior" type="Node3D"]
 
 [node name="LumbarRight" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.05480238, -0.01602766, -0.00034798, 0.0046582, 0.18856065, 0.00409387, -0, -0.01697046, 0.04581614, -0.07, 1.076, -0.05)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Muscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine02"
 metadata/relief = 0.0027
 
 [node name="LumbarLeft" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.06063427, 0.0201792, -0.00034153, -0.00666977, 0.18344727, -0.00310483, 0, 0.01284131, 0.04489146, 0.07, 1.09, -0.043)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_DeepMuscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine02"
 metadata/relief = 0.0023
 
 [node name="DeepAbdominalFold" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.09333042, 0.0167575, 0.0008694, -0.01119965, 0.13964586, 0.00724501, 0, -0.01955042, 0.05249528, -0.017, 1.058, 0.03)
 mesh = ExtResource("2_lobe")
-material_override = SubResource("Material_SoftTissue")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine02"
 metadata/relief = 0.0015
 
 [node name="AbdominalWall" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.10474369, 0.01053111, 0.00008349, -0.00733206, 0.15044438, 0.00119267, 0, -0.00752222, 0.0239702, 0.025, 1.145, 0.071)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Fascia")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine01"
 metadata/relief = 0.0022
 
 [node name="UpperRightLobe" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.06772626, -0.01329026, -0.00057744, 0.00609536, 0.14766958, 0.00641603, -0, -0.01476696, 0.06467999, -0.071, 1.296, -0.005)
 mesh = ExtResource("2_lobe")
-material_override = SubResource("Material_Lung")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine01"
 metadata/relief = 0.0019
 
 [node name="UpperLeftLobe" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.06581515, 0.01060621, 0.00053844, -0.00493614, 0.14141617, 0.00717921, 0, -0.0183841, 0.0555353, 0.067, 1.3, -0.016)
 mesh = ExtResource("2_lobe")
-material_override = SubResource("Material_DeepMuscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine01"
 metadata/relief = 0.0023
 
 [node name="CentralChestLobe" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.0457022, 0.02312401, 0.00125919, -0.01096853, 0.09635002, 0.00524661, 0, -0.013489, 0.03963442, 0.016, 1.284, 0.035)
 mesh = ExtResource("2_lobe")
-material_override = SubResource("Material_SoftTissue")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"Spine01"
 metadata/relief = 0.003
 
 [node name="LumbarBone" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.0179987, 0.00207298, 0.00002859, -0.00021598, 0.17274831, 0.00238256, 0, -0.0207298, 0.01985756, -0.007, 1.056, -0.061)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"Spine02"
 metadata/relief = 0.0036
@@ -161,7 +67,7 @@ metadata/relief = 0.0036
 [node name="LumbarBoneCore" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.01049924, 0.00196576, 0.00001687, -0.00012599, 0.16381305, 0.00140571, 0, -0.01965757, 0.01171596, -0.007, 1.056, -0.061)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Marrow")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"core"
 metadata/bone = &"Spine02"
 metadata/relief = 0.004
@@ -169,7 +75,7 @@ metadata/relief = 0.004
 [node name="ThoracicBone" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.0179991, 0.00130892, -0.00002707, -0.00017999, 0.13089211, -0.00270695, 0, 0.01701597, 0.02082479, -0.005, 1.321, -0.071)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"Spine01"
 metadata/relief = 0.0036
@@ -177,28 +83,28 @@ metadata/relief = 0.0036
 [node name="LeftFlexorBundle" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.01961976, 0.06824803, -0.00461714, -0.01706064, -0.07848534, 0.00530972, 0, 0.04417305, 0.0165677, 0.3837909, 1.08514493, -0.00804897)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Muscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.0026
 
 [node name="LeftExtensorBundle" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.02112897, 0.07187182, -0.00589968, -0.01837299, -0.0826527, 0.00678464, 0, 0.04651852, 0.02116985, 0.40346456, 1.07623598, -0.02795878)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_DeepMuscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.0022
 
 [node name="LeftLateralTendon" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00754606, 0.04952512, -0.00307809, -0.00656178, -0.05695396, 0.00353981, 0, 0.03205478, 0.01104514, 0.40041611, 1.04316627, 0.00351907)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Fascia")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.003
 
 [node name="LeftRadius" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00830067, 0.0754956, -0.00256508, -0.00721796, -0.08682007, 0.00294984, 0, 0.04886399, 0.00920428, 0.38573349, 1.07224312, -0.01423726)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.0038
@@ -206,7 +112,7 @@ metadata/relief = 0.0038
 [node name="LeftUlna" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00679145, 0.0754956, -0.00256508, -0.0059056, -0.08682007, 0.00294984, 0, 0.04886399, 0.00920428, 0.40204919, 1.08853149, -0.01708344)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.0038
@@ -214,7 +120,7 @@ metadata/relief = 0.0038
 [node name="LeftRadiusCore" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00452764, 0.07066389, -0.00148775, -0.00393707, -0.08126358, 0.00171091, 0, 0.0457367, 0.00533848, 0.38573349, 1.07224312, -0.01423726)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Marrow")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"core"
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.004
@@ -222,7 +128,7 @@ metadata/relief = 0.004
 [node name="LeftUlnaCore" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00362211, 0.07066389, -0.00148775, -0.00314966, -0.08126358, 0.00171091, 0, 0.0457367, 0.00533848, 0.40204919, 1.08853149, -0.01708344)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Marrow")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"core"
 metadata/bone = &"LeftForeArm"
 metadata/relief = 0.004
@@ -230,28 +136,28 @@ metadata/relief = 0.004
 [node name="RightFlexorBundle" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.02292059, -0.06681782, 0.00619501, 0.01935579, -0.07912381, 0.00733596, 0, 0.04520843, 0.02199558, -0.386377, 1.08891061, -0.00347136)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Muscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.0026
 
 [node name="RightExtensorBundle" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.02139255, -0.07036567, 0.00593688, 0.0180654, -0.08332507, 0.00703029, 0, 0.04760888, 0.0210791, -0.40741571, 1.07794647, -0.0288052)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_DeepMuscle")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.0022
 
 [node name="RightLateralTendon" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.0076402, -0.04848727, 0.0030975, 0.00645193, -0.05741728, 0.00366798, 0, 0.03280612, 0.01099779, -0.40309992, 1.04585893, 0.00250365)
 mesh = ExtResource("1_muscle")
-material_override = SubResource("Material_Fascia")
+material_override = ExtResource("4_tissue")
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.003
 
 [node name="RightRadius" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00840422, -0.07391352, 0.00258125, 0.00709712, -0.08752633, 0.00305665, 0, 0.05000932, 0.00916483, -0.38958576, 1.07426142, -0.01513988)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.0038
@@ -259,7 +165,7 @@ metadata/relief = 0.0038
 [node name="RightUlna" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00687618, -0.07391352, 0.00258125, 0.00580674, -0.08752633, 0.00305665, 0, 0.05000932, 0.00916483, -0.40619883, 1.09023693, -0.01797125)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Cortex")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"bone"
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.0038
@@ -267,7 +173,7 @@ metadata/relief = 0.0038
 [node name="RightRadiusCore" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00458412, -0.06918305, 0.00149713, 0.00387116, -0.08192465, 0.00177286, 0, 0.04680873, 0.0053156, -0.38958576, 1.07426142, -0.01513988)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Marrow")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"core"
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.004
@@ -275,7 +181,7 @@ metadata/relief = 0.004
 [node name="RightUlnaCore" type="MeshInstance3D" parent="."]
 transform = Transform3D(-0.00366729, -0.06918305, 0.00149713, 0.00309693, -0.08192465, 0.00177286, 0, 0.04680873, 0.0053156, -0.40619883, 1.09023693, -0.01797125)
 mesh = ExtResource("3_core")
-material_override = SubResource("Material_Marrow")
+material_override = ExtResource("4_tissue")
 metadata/profile = &"core"
 metadata/bone = &"RightForeArm"
 metadata/relief = 0.004

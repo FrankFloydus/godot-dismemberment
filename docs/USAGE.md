@@ -98,6 +98,26 @@ PBR materials can be converted automatically while retaining their supported
 maps. Custom shaders must read the selected vertex color channel (blue by
 default) and the blood animation uniform themselves.
 
+## Staged skeletal dismemberment
+
+For a local batch, call `stage_dismember_limb(bone)` on the main thread.
+A successful stage updates the component's missing-bone state and returns
+a hidden limb whose physics simulation is held. Keep an independent pose
+snapshot on screen if the source should appear intact during preparation.
+Call `release_staged_limb(limb, velocity_change)` for each limb in the same
+physics callback to show them and start simulation together. Release is
+single-use and requires the component that prepared the limb. In Bone
+Collapse mode, each staged limb reuses its own source mesh geometry and
+gets separate material state. The actors in the batch can use different
+source meshes.
+Use the normal component reset to clear an abandoned batch. The staged
+methods are intended for local use. The component rejects staging with
+network replication enabled and a multiplayer peer active.
+
+Pass `false` as the third argument to `spawn_blood_particles` to construct
+the effect off-tree. Add the returned node to the scene to start it, or free
+it if the batch is cancelled.
+
 ## Experimental slicing API
 
 On `experiment/plane-slicing`, `MeshPlaneSlice.slice_pose(mesh_instance,
@@ -124,15 +144,22 @@ Build a local `Plane` from the resulting normal and point. The demo calls
 the same geometry API from its camera swipe, builds convex rigid bodies from
 the pieces, and publishes the swap after all colliders succeed.
 
-For a batch of standing targets, capture each pose on the main thread with
+For a batch, capture each source mesh and bone palette on the main thread with
 `MeshPlaneSlice.capture_pose_job(mesh_instance, skeleton, local_plane)`.
 A valid capture returns a `MeshPlaneSliceJob`. Keep a reference to it and
-submit its `compute` method to `WorkerThreadPool`. Poll the task, reap it
+submit its `compute` method to `WorkerThreadPool` to bake the pose and
+prepare the geometry. Poll the task, reap it
 with `wait_for_task_completion` once complete, then call
 `job.finish(cap_material)` on the main thread to build the result meshes.
 Each job computes and publishes once. The job owns its captured pose,
 so a caller can discard it after the worker completes. Validate that the
 target is still current before replacing it with the finished meshes.
+
+Set `prepare_hulls` to return one mesh-local convex support sample per
+piece alongside the geometry. Supply `collapsed_roots` to preserve
+existing skeletal cuts in the captured pose. When `fit_to_pose` is set,
+read `job.get_cut_plane()` after `compute()` for the plane used by the
+worker. This adjusts the offset to stay inside the captured geometry.
 
 `MeshPlaneSlice.sever_connected_piece(array_mesh, local_plane, limb_seed,
 cap_material)` uses a mesh-local point on the limb side of the plane to

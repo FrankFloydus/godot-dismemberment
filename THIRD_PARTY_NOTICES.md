@@ -20,27 +20,14 @@ Godot shaders, editor shell, demonstration environment and physical-body
 configuration are authored for this port. The realistic humanoid mesh has the
 separate provenance below.
 
-The slice-cap albedo in `project/addons/godot-dismemberment/textures/slice_cap/`
-was generated with OpenAI ImageGen and made tileable for this addon. The
-matching normal and roughness maps were derived from the tile. The metallic
-map is solid black.
-
-<details>
-<summary>Slice-cap albedo generation prompt</summary>
-
-> Generate one square tileable base-color game texture for an organic interior
-> material, abstract material only. Orthographic, edge-to-edge albedo scan
-> under perfectly uniform diffuse illumination. Compact fine-grained dark
-> burgundy and reddish brown with irregular muted red clusters, soft mottled
-> transitions and sparse thin pale connective wisps at several scales. Tiny
-> broken fiber bundles viewed obliquely, with varied orientations. Natural
-> slightly uneven coloring. Keep most detail small so it remains believable on
-> a narrow surface. No body parts or objects, text, lighting, shadows, glare,
-> wet highlights, parallel bands, brush strokes, grid, borders or large
-> centered feature. Match opposite edges for repeating UVs. Crisp material
-> detail, subtly varied value, restrained saturation.
-
-</details>
+The slice-cap maps in `project/addons/godot-dismemberment/textures/slice_cap/`
+use the organic tissue textures from [SkinGore](https://github.com/zulubo/SkinGore)
+by zulubo, copyright 2020, at commit `e21aeaf809f97518af788093291910d9239dde74`.
+The albedo and normal maps come from the original `GoreTileable` textures.
+The Godot roughness map inverts the alpha channel of
+`GoreTileable_MetallicSmoothness.png` and maps it to 0.19 through 0.84 to
+retain variation under the range lighting. Metallic is black. The MIT
+notice is distributed alongside the maps as `SKINGORE_LICENSE.txt`.
 
 The FPS demo's clothed humanoid is the rigged **Man Base Mesh** from
 [Grab3D](https://grab3d.com/models/characters/man-base-character/). Grab3D publishes
@@ -58,6 +45,11 @@ slot mapping; it also includes imported PBR textures, a saved Godot body mesh an
 17 authored physical bodies with a default combined mass of 75 kg. These Godot
 setup changes do not alter the asset's stated CC0 provenance. The original
 download SHA-256 is recorded in `ORIGIN.json`.
+
+The mass range's `body_mesh_mass_range.res` derives from the same CC0
+humanoid. It was simplified offline with meshoptimizer 1.1.1, preserving
+the retained vertices' UVs, normals, skin weights and material. The
+simplifier is a build-time tool and is outside the runtime addon.
 
 The range HUD uses Barlow Semi Condensed and IBM Plex Mono under the SIL Open
 Font License 1.1. The license files accompany the fonts in

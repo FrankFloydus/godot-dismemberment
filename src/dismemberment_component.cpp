@@ -93,6 +93,8 @@ void DismembermentComponent::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_replication_state"), &DismembermentComponent::get_replication_state);
     ClassDB::bind_method(D_METHOD("apply_replication_state", "state"), &DismembermentComponent::apply_replication_state);
     ClassDB::bind_method(D_METHOD("synchronize_peer", "peer_id"), &DismembermentComponent::synchronize_peer);
+    ClassDB::bind_method(D_METHOD("stage_dismember_limb", "bone_name"), &DismembermentComponent::stage_dismember_limb);
+    ClassDB::bind_method(D_METHOD("release_staged_limb", "limb", "impulse"), &DismembermentComponent::release_staged_limb);
     ClassDB::bind_method(D_METHOD("_finish_dismemberment", "limb_id", "bone_name", "impulse"), &DismembermentComponent::finish_dismemberment);
     ClassDB::bind_method(D_METHOD("_request_dismemberment", "bone_name", "impulse"), &DismembermentComponent::request_dismemberment);
     ClassDB::bind_method(D_METHOD("_receive_dismemberment", "bone_name", "impulse", "revision"), &DismembermentComponent::receive_dismemberment);
@@ -429,9 +431,44 @@ void DismembermentComponent::dismember_limb(const StringName &bone_name, const V
     if (network_enabled && is_inside_tree() && get_multiplayer()->has_multiplayer_peer()) rpc("_receive_dismemberment", bone_name, impulse, replication_revision);
 }
 
-void DismembermentComponent::dismember_internal(const StringName &input_bone, const Vector3 &impulse, bool canonical) {
+DismemberedLimb *DismembermentComponent::stage_dismember_limb(const StringName &bone_name) {
+    if (!is_inside_tree() || (network_enabled && get_multiplayer()->has_multiplayer_peer())) return nullptr;
+    if (!initialized && !initialize()) return nullptr;
+    DismemberedLimb *limb = dismember_internal(bone_name, Vector3(), false, true);
+    if (limb) {
+        ++replication_revision;
+        emit_signal("replication_state_changed", get_replication_state());
+    }
+    return limb;
+}
+
+bool DismembermentComponent::release_staged_limb(DismemberedLimb *limb, const Vector3 &impulse) {
+    if (!limb || limb->is_queued_for_deletion() || !limb->waiting_for_launch ||
+            !impulse.is_finite() || impulse.length_squared() > 1.0e12) return false;
+    const StringName bone_name = limb->get_bone_name();
+    const uint64_t limb_id = uint64_t(limb->get_instance_id());
+    if (uint64_t(missing_limbs.get(bone_name, uint64_t(0))) != limb_id) return false;
+    limb->waiting_for_launch = false;
+    if (limb->is_articulated()) {
+        for (int i = 0; i < limb->physical_bones.size(); ++i) {
+            PhysicalBone3D *body = Object::cast_to<PhysicalBone3D>(limb->physical_bones[i]);
+            if (!body) continue;
+            body->set_collision_layer(limb_collision_layer);
+            body->set_collision_mask(limb_collision_mask);
+        }
+    } else {
+        limb->set_collision_layer(limb_collision_layer);
+        limb->set_collision_mask(limb_collision_mask);
+    }
+    limb->show();
+    finish_dismemberment(limb_id, bone_name, impulse);
+    return true;
+}
+
+DismemberedLimb *DismembermentComponent::dismember_internal(const StringName &input_bone, const Vector3 &impulse,
+        bool canonical, bool stage_launch) {
     StringName bone_name = canonical ? input_bone : StringName(remapped_bones.get(input_bone, input_bone));
-    if (disable_dismemberment || !validate_bone(bone_name) || !check_bone_filter(bone_name) || missing_limbs.has(bone_name)) return;
+    if (disable_dismemberment || !validate_bone(bone_name) || !check_bone_filter(bone_name) || missing_limbs.has(bone_name)) return nullptr;
     Skeleton3D *skeleton = get_skeleton();
     pre_dismemberment(bone_name, impulse);
     const int bone = skeleton->find_bone(bone_name);
@@ -447,8 +484,10 @@ void DismembermentComponent::dismember_internal(const StringName &input_bone, co
     limb->set_lifetime(limb_lifetime);
     limb->set_rigid_fallback_enabled(limb_rigid_fallback_enabled);
     limb->set_freeze_enabled(true);
-    limb->set_collision_layer(limb_collision_layer);
-    limb->set_collision_mask(limb_collision_mask);
+    limb->waiting_for_launch = stage_launch;
+    limb->set_visible(!stage_launch);
+    limb->set_collision_layer(stage_launch ? 0 : limb_collision_layer);
+    limb->set_collision_mask(stage_launch ? 0 : limb_collision_mask);
     Ref<DismemberedAnimInstance> animation;
     animation.instantiate();
     animation->set_limb(bone_name);
@@ -467,7 +506,8 @@ void DismembermentComponent::dismember_internal(const StringName &input_bone, co
     const Array missing_keys = missing_limbs.keys();
     for (int i = 0; i < missing_keys.size(); ++i) all_missing.push_back(missing_keys[i]);
     limb->prepare_pose_skeleton(skeleton, get_skeletal_mesh_component());
-    const bool articulated = limb->prepare_articulated_physics(skeleton, bone_name, all_missing, limb_collision_layer, limb_collision_mask);
+    const bool articulated = limb->prepare_articulated_physics(skeleton, bone_name, all_missing,
+            stage_launch ? 0 : limb_collision_layer, stage_launch ? 0 : limb_collision_mask);
     if (geometry_mode == BONE_COLLAPSE) {
         limb->prepare_pose_skeleton(skeleton);
         limb->collapse_complement(bone_name, collapse_scale);
@@ -517,10 +557,15 @@ void DismembermentComponent::dismember_internal(const StringName &input_bone, co
             const StringName filter_bone = attachment_filter_bone(source, attachment_socket(source, skeleton));
             if (filter_bone != StringName() && !contains_bone(skeleton, bone, skeleton->find_bone(filter_bone))) continue;
         }
+        const bool share_collapsed_mesh = stage_launch && geometry_mode == BONE_COLLAPSE;
         if (geometry_mode == BONE_COLLAPSE) {
             if (needs_fallback_collision && detached.is_valid()) limb->add_collision_mesh(detached, source->get_global_transform());
-            detached = source->get_mesh()->duplicate();
-            if (detached.is_valid()) {
+            if (share_collapsed_mesh) {
+                detached = source->get_mesh();
+            } else {
+                detached = source->get_mesh()->duplicate();
+            }
+            if (detached.is_valid() && !share_collapsed_mesh) {
                 for (int s = 0; s < detached->get_surface_count(); ++s) detached->surface_set_material(s, source->get_active_material(s));
             }
         }
@@ -543,8 +588,14 @@ void DismembermentComponent::dismember_internal(const StringName &input_bone, co
             }
         }
         for (int s = 0; s < detached->get_surface_count(); ++s) {
-            Ref<Material> material = detached->surface_get_material(s);
-            if (material.is_valid()) detached->surface_set_material(s, material->duplicate());
+            Ref<Material> material = share_collapsed_mesh ? source->get_active_material(s) : detached->surface_get_material(s);
+            if (material.is_null()) continue;
+            if (share_collapsed_mesh) {
+                // Keep the shared geometry read-only and give each limb its own material state.
+                piece->set_surface_override_material(s, material->duplicate());
+            } else {
+                detached->surface_set_material(s, material->duplicate());
+            }
         }
     }
     transfer_attachments(bone_name, limb);
@@ -566,12 +617,13 @@ void DismembermentComponent::dismember_internal(const StringName &input_bone, co
     cut_event["bone"] = bone_name;
     cut_event["destroy"] = false;
     dismemberment_events.push_back(cut_event);
-    call_deferred("_finish_dismemberment", uint64_t(limb->get_instance_id()), bone_name, impulse);
+    if (!stage_launch) call_deferred("_finish_dismemberment", uint64_t(limb->get_instance_id()), bone_name, impulse);
+    return limb;
 }
 
 void DismembermentComponent::finish_dismemberment(uint64_t id, const StringName &bone_name, const Vector3 &impulse) {
     DismemberedLimb *limb = resolve<DismemberedLimb>(id);
-    if (!limb || limb->is_queued_for_deletion()) return;
+    if (!limb || limb->is_queued_for_deletion() || limb->waiting_for_launch) return;
     limb->begin_simulation(impulse);
     limb->set_physics_process(limb->get_lifetime() > 0.0);
     post_dismemberment(bone_name, limb);

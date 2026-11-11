@@ -85,7 +85,8 @@ class DismembermentComponent : public Node3D {
     String last_error;
 
     void configure_rpc();
-    void dismember_internal(const StringName &bone_name, const Vector3 &impulse, bool canonical = false);
+    DismemberedLimb *dismember_internal(const StringName &bone_name, const Vector3 &impulse,
+            bool canonical = false, bool stage_launch = false);
     void hide_internal(const StringName &bone_name);
     void transfer_attachments(const StringName &bone_name, DismemberedLimb *limb);
     void disable_missing_physics(const StringName &bone_name);
@@ -124,6 +125,9 @@ public:
     Ref<LimbMap> get_limb_map() const;
     bool check_bone_filter(const StringName &bone_name) const;
     void dismember_limb(const StringName &bone_name, const Vector3 &impulse = Vector3());
+    // Local gameplay may build hidden limbs and release their physics together.
+    DismemberedLimb *stage_dismember_limb(const StringName &bone_name);
+    bool release_staged_limb(DismemberedLimb *limb, const Vector3 &impulse);
     void destroy_limb(const StringName &bone_name);
     void reset_all_limbs();
     void clean_up_all_referenced_limbs();

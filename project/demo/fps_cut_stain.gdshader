@@ -2,6 +2,9 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_never, shadows_disabled, specular_schlick_ggx;
 
 uniform sampler2D stain_noise : filter_linear_mipmap, repeat_enable;
+uniform sampler2D tissue_color : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D tissue_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D tissue_roughness : filter_linear_mipmap_anisotropic, repeat_enable;
 
 instance uniform vec4 stain_plane_0 : instance_index(0);
 instance uniform vec4 stain_min_0 : instance_index(1);
@@ -53,8 +56,17 @@ void fragment() {
 		discard;
 	}
 
-	ALBEDO = mix(vec3(0.14, 0.011, 0.012), vec3(0.044, 0.003, 0.006), opacity);
-	ROUGHNESS = mix(0.72, 0.42, opacity);
-	SPECULAR = 0.35;
-	ALPHA = opacity * 0.92;
+	vec2 tissue_uv = UV * 3.0;
+	float wet_center = smoothstep(0.30, 0.92, opacity);
+	vec3 detail = texture(tissue_color, tissue_uv).rgb;
+	ALBEDO = mix(vec3(0.083, 0.008, 0.009), detail * vec3(0.68, 0.30, 0.30), wet_center);
+	ROUGHNESS = mix(0.62, texture(tissue_roughness, tissue_uv).r, wet_center);
+	SPECULAR = 0.50;
+
+	// Turn the surface normal into the boundary where the layer thins out.
+	vec2 bump = texture(tissue_normal, tissue_uv).xy * 2.0 - 1.0;
+	bump *= mix(-1.6, 1.0, wet_center);
+	NORMAL_MAP = vec3(clamp(0.5 + bump * 0.5, 0.0, 1.0), 1.0);
+	NORMAL_MAP_DEPTH = opacity;
+	ALPHA = opacity * 0.94;
 }

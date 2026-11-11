@@ -36,19 +36,22 @@ static func prepare() -> void:
 			"relief": part.get_meta(&"relief"),
 			"profile": part.get_meta(&"profile", &"soft"),
 			"mesh": mesh,
+			"surfaces": [arrays],
 			"cap_material": part.material_override,
 			"rest_frame": rest_frame,
 		})
 	interior.free()
 
-static func posed_layers(source: MeshInstance3D, skeleton: Skeleton3D) -> Array[Dictionary]:
+static func posed_layers(source: MeshInstance3D, skeleton: Skeleton3D,
+		poses: Array[Transform3D] = []) -> Array[Dictionary]:
 	var posed: Array[Dictionary] = []
 	if source == null or skeleton == null or source.mesh == null:
 		return posed
 	if not bool(source.get_meta(&"slice_interior_rig", false)) and source.mesh.resource_path != BODY_MESH_PATH:
 		return posed
 	prepare()
-	var poses := SliceBones._capture_poses(source, skeleton)
+	if poses.is_empty():
+		poses = SliceBones._capture_poses(source, skeleton)
 	var delta_by_bone: Dictionary = {}
 	for layer: Dictionary in _layers:
 		var bone: StringName = layer.bone
@@ -67,6 +70,7 @@ static func posed_layers(source: MeshInstance3D, skeleton: Skeleton3D) -> Array[
 			"relief": layer.relief,
 			"profile": layer.profile,
 			"mesh": layer.mesh,
+			"surfaces": layer.surfaces,
 			"cap_material": layer.cap_material,
 			"transform": transform,
 		})

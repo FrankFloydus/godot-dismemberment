@@ -186,25 +186,33 @@ func _bind_station(station: Node3D) -> void:
 		var local := skeleton.get_bone_global_rest(bone_index).affine_inverse() * area.transform
 		hitboxes.append({"area": area, "index": bone_index, "bone": bone,
 			"local": local, "collision_layer": area.collision_layer})
-	targets.append({
+	var target := {
 		"actor": actor, "skeleton": skeleton, "mesh": skeleton.get_node("SkinMesh"),
 		"component": component, "hitboxes": hitboxes, "physics_bodies": physics_bodies,
 		"spawn": station.get_node("PlayerSpawn"), "aim": station.get_node("InitialAim"),
 		"title": station.get_meta("station_title", station.name), "missing": {}, "ragdoll": false,
-	})
+		"hitboxes_dirty": true, "hitboxes_suspended": false,
+	}
+	targets.append(target)
+	skeleton.pose_updated.connect(func() -> void: target.hitboxes_dirty = true)
 	if not component.initialize():
 		push_error("Rig setup failed at %s: %s" % [station.name, component.get_last_error()])
 		return
 	component.pre_dismemberment.connect(_on_pre_dismemberment.bind(index))
 	component.post_dismemberment.connect(_on_post_dismemberment.bind(index))
 
-func _sync_hitboxes() -> void:
+func _sync_hitboxes(only_dirty := false) -> void:
 	for target in targets:
+		var suspend_hitboxes: bool = target.ragdoll or target.has("plane_slice")
+		if only_dirty and target.hitboxes_suspended == suspend_hitboxes \
+				and (suspend_hitboxes or not target.hitboxes_dirty):
+			continue
+		target.hitboxes_dirty = false
+		target.hitboxes_suspended = suspend_hitboxes
 		var skeleton: Skeleton3D = target.skeleton
 		for hitbox in target.hitboxes:
 			var area: Area3D = hitbox.area
 			var missing: bool = target.missing.has(hitbox.bone)
-			var suspend_hitboxes: bool = target.ragdoll or target.has("plane_slice")
 			area.collision_layer = 0 if missing or suspend_hitboxes else hitbox.collision_layer
 			if not missing and not suspend_hitboxes:
 				area.transform = skeleton.get_bone_global_pose(hitbox.index) * hitbox.local
@@ -212,7 +220,7 @@ func _sync_hitboxes() -> void:
 func _physics_process(delta: float) -> void:
 	if player == null:
 		return
-	_sync_hitboxes()
+	_sync_hitboxes(true)
 	_update_aim_label()
 	shot_cooldown = maxf(0, shot_cooldown - delta)
 	if not player.is_on_floor():
@@ -653,7 +661,7 @@ func _on_post_dismemberment(bone: StringName, limb: Node, index: int) -> void:
 	if is_instance_valid(limb):
 		limb.set_meta("target_index", index)
 	var target: Dictionary = targets[index]
-	if not target.ragdoll and source_ragdoll_bones.has(String(bone)):
+	if not target.ragdoll and _should_ragdoll_on_sever(bone):
 		var remaining: Array[StringName] = []
 		for name: StringName in target.physics_bodies:
 			if not target.missing.has(name):
@@ -662,10 +670,16 @@ func _on_post_dismemberment(bone: StringName, limb: Node, index: int) -> void:
 			target.skeleton.physical_bones_start_simulation(remaining)
 			target.ragdoll = true
 	total_cuts += 1
-	_feedback("SEVERED · " + str(bone) + "  /  " + target.title)
+	_report_skeletal_sever(bone, target.title)
+
+func _should_ragdoll_on_sever(bone: StringName) -> bool:
+	return source_ragdoll_bones.has(String(bone))
+
+func _report_skeletal_sever(bone: StringName, title: String) -> void:
+	_feedback("SEVERED · " + str(bone) + "  /  " + title)
 	_update_stats()
 
-func _reset_target(index: int) -> void:
+func _reset_target(index: int, update_ui := true) -> void:
 	if index < 0 or index >= targets.size(): return
 	_cancel_slash()
 	var target: Dictionary = targets[index]
@@ -677,8 +691,9 @@ func _reset_target(index: int) -> void:
 	target.skeleton.reset_bone_poses()
 	target.ragdoll = false
 	target.missing.clear()
-	_sync_hitboxes()
-	_feedback("SUBJECT %02d RESTORED · aim and fire" % (index + 1))
+	if update_ui:
+		_sync_hitboxes()
+		_feedback("SUBJECT %02d RESTORED · aim and fire" % (index + 1))
 
 func _jump_station(index: int) -> void:
 	if index < 0 or index >= targets.size():

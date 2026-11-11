@@ -55,6 +55,7 @@ if ($Extended) {
     Invoke-BehaviorTest 'test_physics_fidelity.gd' 'GODOT_DISMEMBERMENT_PHYSICS_FIDELITY_PASS'
     Invoke-BehaviorTest 'test_physics_joint_integrity.gd' 'GODOT_DISMEMBERMENT_JOINT_INTEGRITY_PASS'
     Invoke-BehaviorTest 'test_physics_reset_cycles.gd' 'GODOT_DISMEMBERMENT_RESET_PHYSICS_PASS'
+    Invoke-BehaviorTest 'test_mass_range.gd' 'MASS_RANGE_CHECKS=\d+ FAILURES=0' $false @('--mixed', '--transition', '--cancel')
 }
 if ($Rendered) {
     # Dummy headless rendering cannot prove final skin matrices. These tests

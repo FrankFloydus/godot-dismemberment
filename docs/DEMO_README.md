@@ -43,6 +43,40 @@ wound without severing.
 - **F:** blood-only shot; **X:** hide-only shot; **C:** clean up detached limbs.
 - **Esc:** release/capture the mouse.
 
+## 30-target Mass Range
+
+Open `demo/mass_range.tscn` and press **F6** to run the authored 30-humanoid
+scene. It starts at an overview of the range. The targets are saved scene
+instances, so their placement can be edited in Godot. They use a closed,
+19,990-triangle version of the same skinned character for crowd gameplay.
+The standard FPS range uses the original 262,348-triangle body.
+
+- **RMB** runs Mass Murder. It picks one to four eligible skeletal roots
+  per target across different limb chains. The prepared limbs and remaining
+  ragdolls appear and launch together. The range physics and player movement
+  keep running during preparation. Targets already cut into rigid pieces
+  receive an impulse on those pieces. The batch uses the native blood effects
+  without rebuilding the skinned mesh for vertex painting on every sever.
+- **F** prepares a mass slice with randomized planes. Some targets receive
+  a second cut. The completed cuts are published together after preparation.
+- **R** cancels any pending mass action and restores all 30 targets.
+- **B** fires the blood-only shot. **LMB**, **MMB**, **V**, and **Q / E** keep
+  their usual controls in this scene.
+
+Run the mass range integration test with the Godot 4.7 console executable
+in `$Godot`. Append `-- --mixed --transition --cancel` to verify both
+action orders and reset during preparation. Use `-- --unique-meshes
+--dismember-only` or `-- --unique-meshes --slice-only` for a fresh action
+with independently allocated body geometry. `--targets=20` limits the
+runtime test fixture to 20 of the 30 authored stations. `--full-detail`
+runs the same fixture with the original body mesh.
+
+```powershell
+& $Godot --audio-driver Dummy --disable-vsync --resolution 1600x900 --path project --script res://tests/test_mass_range.gd
+```
+
+## Slice surfaces
+
 On the experimental slicing branch, aim at the subject, hold **middle mouse**,
 drag in the direction of the slash, and release. The line starts at the
 crosshair. The first subject or fragment hit by the swipe within reach is cut
@@ -53,9 +87,10 @@ again. **R** restores the subject. The original **V** forearm cut and
 to edit the reach. The demo humanoid has authored torso and forearm volumes
 in `demo/rigs/humanoid_slice_interior.tscn`. The slicer cuts them with the
 outer mesh and exposes their cross-sections as each fragment moves.
-An irregular blood stain extends from the seam onto the surrounding
-skin and clothing. Edit the interior scene to adjust the individual
-volumes and materials.
+The exposed volumes and their surrounding cap share the same continuous
+SkinGore texture projection. A textured stain extends from the seam onto
+the skin and clothing. Edit the interior scene to adjust the volumes,
+or use the cap material override to change their surface finish.
 
 Leave **Slice Cap Material** empty to use the bundled materials, or assign
 a Godot material to override the exposed outer and inner cut surfaces.

@@ -8,11 +8,12 @@ const MAX_PROXIMAL_HIT_GAP := 0.035
 const LIMB_BOUNDS_MARGIN := 0.12
 const THIGH_LATERAL_BIAS := 1.25
 
-static func capture(target: Dictionary) -> Dictionary:
+static func capture(target: Dictionary, poses: Array[Transform3D] = []) -> Dictionary:
 	var skeleton: Skeleton3D = target.skeleton
 	var mesh: MeshInstance3D = target.mesh
 	var component: GoreComponent = target.component
-	var poses := _capture_poses(mesh, skeleton)
+	if poses.is_empty():
+		poses = _capture_poses(mesh, skeleton)
 	var missing: Dictionary = target.missing
 	var regions: Array[Dictionary] = []
 	var limb_bounds := {}

@@ -61,7 +61,7 @@ public:
     void remove_blood_from_static_mesh(MeshInstance3D *p_mesh);
     BloodPool *spawn_blood_decal(const Vector3 &p_location, const Vector3 &p_normal, Node3D *p_attachment = nullptr, const Vector3 &p_splatter_direction = Vector3(0, 1, 0));
     BloodPool *spawn_bool_decal(const Vector3 &p_location, const Vector3 &p_normal, Node3D *p_attachment = nullptr, const Vector3 &p_splatter_direction = Vector3(0, 1, 0)) { return spawn_blood_decal(p_location, p_normal, p_attachment, p_splatter_direction); }
-    Node3D *spawn_blood_particles(const Vector3 &p_location, const Vector3 &p_direction);
+    Node3D *spawn_blood_particles(const Vector3 &p_location, const Vector3 &p_direction, bool p_attach_to_scene = true);
     void spawn_blood_fx(const Vector3 &p_location, const Vector3 &p_direction, const StringName &p_hit_bone = StringName());
     static double sphere_mask(const Vector3 &p_center, const Vector3 &p_location, double p_radius, double p_hardness);
     void begin_blood_animation();

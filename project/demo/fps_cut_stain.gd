@@ -3,6 +3,7 @@ extends RefCounted
 
 const STAIN_SHADER := preload("res://demo/fps_cut_stain.gdshader")
 const NOISE := preload("res://addons/godot-dismemberment/textures/cloud_noise.png")
+const TISSUE := preload("res://addons/godot-dismemberment/materials/slice_cap.tres")
 const HISTORY_META := &"plane_slice_stains"
 const CAP_NAME := "Slice Cap"
 const SEAM_MARGIN := 0.04
@@ -25,10 +26,13 @@ var _untextured := StandardMaterial3D.new()
 func _init() -> void:
 	_stain.shader = STAIN_SHADER
 	_stain.set_shader_parameter(&"stain_noise", NOISE)
+	_stain.set_shader_parameter(&"tissue_color", TISSUE.albedo_texture)
+	_stain.set_shader_parameter(&"tissue_normal", TISSUE.normal_texture)
+	_stain.set_shader_parameter(&"tissue_roughness", TISSUE.roughness_texture)
 	_untextured.next_pass = _stain
 
 
-func apply(visual: MeshInstance3D, source: MeshInstance3D, local_plane: Plane) -> void:
+func apply(visual: MeshInstance3D, source: MeshInstance3D, local_plane: Plane, cap_arrays: Dictionary = {}) -> void:
 	var mesh := visual.mesh as ArrayMesh
 	if mesh == null or mesh.get_surface_count() == 0:
 		return
@@ -46,7 +50,7 @@ func apply(visual: MeshInstance3D, source: MeshInstance3D, local_plane: Plane) -
 			var bounds: AABB = previous.bounds
 			if mesh_bounds.intersects(bounds):
 				history.append(previous)
-	var current := _latest_seam(mesh, local_plane.normalized())
+	var current := _latest_seam(mesh, local_plane.normalized(), cap_arrays)
 	if not current.is_empty():
 		if history.size() == PLANE_PARAMETERS.size():
 			history.pop_front()
@@ -74,12 +78,13 @@ func apply(visual: MeshInstance3D, source: MeshInstance3D, local_plane: Plane) -
 		visual.set_instance_shader_parameter(MAX_PARAMETERS[i], Vector4(high.x, high.y, high.z, 0.0))
 
 
-func _latest_seam(mesh: ArrayMesh, local_plane: Plane) -> Dictionary:
+func _latest_seam(mesh: ArrayMesh, local_plane: Plane, cap_arrays: Dictionary) -> Dictionary:
 	# Native slicing publishes the new cap after all retained source surfaces.
 	var surface := mesh.get_surface_count() - 1
 	if mesh.surface_get_name(surface) != CAP_NAME or local_plane.normal.is_zero_approx():
 		return {}
-	var positions: PackedVector3Array = mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]
+	var arrays: Array = cap_arrays[surface] if cap_arrays.has(surface) else mesh.surface_get_arrays(surface)
+	var positions: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	if positions.is_empty():
 		return {}
 	var bounds := AABB(positions[0], Vector3.ZERO)

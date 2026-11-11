@@ -97,11 +97,16 @@ func _check_worker_snapshot(cube: ArrayMesh, material: Material) -> void:
 	instance.mesh = cube
 	var plane := Plane(Vector3.RIGHT, 0.35)
 	var synchronous := MeshPlaneSlice.slice_pose(instance, null, plane, material)
-	var job := MeshPlaneSlice.capture_pose_job(instance, null, plane)
+	var job := MeshPlaneSlice.capture_pose_job(instance, null, plane, 0.000001, true)
+	var fitted := MeshPlaneSlice.capture_pose_job(instance, null, Plane(Vector3.RIGHT, 42.0),
+		0.000001, false, PackedStringArray(), true)
 	instance.free()
 	if job == null:
 		_check(false, "the worker captures a valid independent pose job")
 		return
+	_check(job.get_cut_plane() == plane, "a regular worker preserves the requested cut plane")
+	_check(fitted != null and fitted.compute() and fitted.get_cut_plane().normal == Vector3.RIGHT
+		and absf(fitted.get_cut_plane().d) < 1.0, "a fitted worker moves the requested plane inside the captured pose")
 	_check(job.finish(material).has("error"), "a job cannot publish before its computation")
 	var task := WorkerThreadPool.add_task(job.compute)
 	WorkerThreadPool.wait_for_task_completion(task)
@@ -110,6 +115,7 @@ func _check_worker_snapshot(cube: ArrayMesh, material: Material) -> void:
 	for side: String in ["positive_pieces", "negative_pieces"]:
 		var expected: Array = synchronous[side]
 		var actual: Array = result.get(side, [])
+		var hulls: Array = result.get(side.replace("_pieces", "_hulls"), [])
 		if actual.size() != expected.size():
 			_check(false, "worker and synchronous cut produce the same piece count")
 			continue
@@ -117,10 +123,15 @@ func _check_worker_snapshot(cube: ArrayMesh, material: Material) -> void:
 			var worker_mesh: ArrayMesh = actual[index]
 			var synchronous_mesh: ArrayMesh = expected[index]
 			var same := worker_mesh.get_surface_count() == synchronous_mesh.get_surface_count()
+			var points := PackedVector3Array()
 			for surface in worker_mesh.get_surface_count():
-				same = same and worker_mesh.surface_get_arrays(surface) == synchronous_mesh.surface_get_arrays(surface) \
+				var arrays := worker_mesh.surface_get_arrays(surface)
+				points.append_array(arrays[Mesh.ARRAY_VERTEX])
+				same = same and arrays == synchronous_mesh.surface_get_arrays(surface) \
 					and worker_mesh.surface_get_material(surface) == synchronous_mesh.surface_get_material(surface)
 			_check(same, "worker snapshot publishes identical geometry and custom materials")
+			_check(hulls.size() == expected.size() and hulls[index] == MeshPlaneSlice.reduce_collision_hull(points),
+				"worker collision samples match the published piece")
 	_check(job.finish(material).has("error") and not job.compute(), "a consumed result cannot publish or compute again")
 
 func _check_collision_hull() -> void:

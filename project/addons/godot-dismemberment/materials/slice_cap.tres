@@ -6,14 +6,15 @@
 [ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/metallic.png" id="4_metallic"]
 
 [resource]
-resource_name = "Slice Interior"
+resource_name = "Wet Cut Tissue"
+albedo_color = Color(0.76, 0.69, 0.71, 1)
 albedo_texture = ExtResource("1_albedo")
 metallic = 1.0
-metallic_specular = 0.38
+metallic_specular = 0.55
 metallic_texture = ExtResource("4_metallic")
 roughness_texture = ExtResource("3_roughness")
 normal_enabled = true
-normal_scale = 0.62
+normal_scale = 1.0
 normal_texture = ExtResource("2_normal")
-uv1_scale = Vector3(2.3, 2.3, 1)
+uv1_scale = Vector3(5.6, 5.6, 1)
 texture_filter = 5

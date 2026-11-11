@@ -32,6 +32,9 @@ public:
 
 class DismemberedLimb : public RigidBody3D {
     GDCLASS(DismemberedLimb, RigidBody3D)
+    friend class DismembermentComponent;
+
+    bool waiting_for_launch = false;
     StringName bone_name;
     Transform3D bone_transform;
     Ref<DismemberedAnimInstance> anim_instance;

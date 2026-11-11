@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://demo/targets/humanoid_target.tscn" id="1_target"]
+[ext_resource type="ArrayMesh" path="res://demo/assets/humanoid/body_mesh_mass_range.res" id="2_mass_mesh"]
+
+[node name="HumanoidStation" type="Node3D"]
+
+[node name="Target" parent="." instance=ExtResource("1_target")]
+
+[node name="SkinMesh" parent="Target/Skeleton3D" index="0"]
+mesh = ExtResource("2_mass_mesh")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+position = Vector3(0, -0.055, 2.7)
+
+[node name="InitialAim" type="Marker3D" parent="."]
+position = Vector3(0, 1.22, 0)
+
+[editable path="Target"]
