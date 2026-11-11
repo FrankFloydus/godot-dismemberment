@@ -85,5 +85,9 @@ func run() -> void:
     var core_hit: Dictionary = arena._shoot()
     expect(core_hit.get("bone",&"") == &"Hips", "body shot resolves the actual pelvis bone")
     expect(target.component.get_all_dismembered_limbs().is_empty(), "protected body shot does not detach the whole character")
+    # Let the audio server retire the last shot and the room playback before quitting.
+    arena.queue_free()
+    await process_frame
+    await create_timer(0.15).timeout
     print("GODOT_DISMEMBERMENT_FPS_RESET_", "PASS" if failures == 0 else "FAIL", " checks=",checks," failures=",failures)
     quit(0 if failures == 0 else 1)
