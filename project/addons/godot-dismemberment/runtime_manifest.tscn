@@ -1,0 +1,23 @@
+[gd_scene load_steps=9 format=3]
+
+; A scene manifest gives the export dependency scanner real resource references.
+; GDScript preloads of GDExtension descriptors are not dependency-scanned in all
+; supported Godot versions. These resources are also loaded by native C++ paths.
+[ext_resource type="GDExtension" path="res://addons/godot-dismemberment/godot-dismemberment.gdextension" id="1_extension"]
+[ext_resource type="Shader" path="res://addons/godot-dismemberment/shaders/blood_skin.gdshader" id="2_skin"]
+[ext_resource type="Shader" path="res://addons/godot-dismemberment/shaders/blood_pool.gdshader" id="3_pool"]
+[ext_resource type="Shader" path="res://addons/godot-dismemberment/shaders/blood_burst.gdshader" id="4_burst"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/blood_01.png" id="5_texture"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/blood_02.png" id="6_texture"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/blood_03.png" id="7_texture"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/cloud_noise.png" id="8_noise"]
+
+[node name="GodotDismembermentRuntime" type="Node"]
+metadata/native_extension = ExtResource("1_extension")
+metadata/blood_skin_shader = ExtResource("2_skin")
+metadata/blood_pool_shader = ExtResource("3_pool")
+metadata/blood_burst_shader = ExtResource("4_burst")
+metadata/blood_01 = ExtResource("5_texture")
+metadata/blood_02 = ExtResource("6_texture")
+metadata/blood_03 = ExtResource("7_texture")
+metadata/cloud_noise = ExtResource("8_noise")

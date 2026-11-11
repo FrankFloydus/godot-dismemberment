@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="DismembermentComponent" inherits="Node3D" version="4.3">
+  <brief_description>Procedurally detach or hide bone subtrees from a skinned character.</brief_description>
+  <description>Assign a Skeleton3D and skinned MeshInstance3D using skeleton_path and mesh_path, or use the editor setup dock. Bone names are exact and distances are meters. Remapping occurs before filtering. Cleanup removes detached objects; reset restores the character. Network commands require network_enabled and an explicitly authorized owning_peer_id.</description>
+  <methods>
+    <method name="initialize"><return type="bool"/><description>Validate the source and cache per-instance state. Inspect get_last_error() when false.</description></method>
+    <method name="dismember_limb"><return type="void"/><param index="0" name="bone_name" type="StringName"/><param index="1" name="impulse" type="Vector3" default="Vector3(0, 0, 0)"/><description>Detach a valid, available subtree and apply a physics impulse after pose setup. Duplicate and filtered cuts have no effect.</description></method>
+    <method name="destroy_limb"><return type="void"/><param index="0" name="bone_name" type="StringName"/><description>Remove a subtree without spawning a detached limb.</description></method>
+    <method name="reset_all_limbs"><return type="void"/><description>Restore source geometry, attachments, collision and replicated state, and remove detached limbs.</description></method>
+  </methods>
+  <members>
+    <member name="collapse_scale" type="float" setter="set_collapse_scale" getter="get_collapse_scale">
+      Scale applied to geometry outside the detached subtree in Bone Collapse mode. A value of [code]0.01[/code] retains one percent of the original scale.
+    </member>
+    <member name="disable_dismemberment" type="bool" setter="set_disable_dismemberment" getter="get_disable_dismemberment">
+      Block new requests to detach or hide limbs. Limbs already removed stay missing until reset.
+    </member>
+    <member name="excluded_bones" type="PackedStringArray" setter="set_excluded_bones" getter="get_excluded_bones">
+      Case-sensitive bone names that cannot be selected as cut roots. Exclusions take priority over [member whitelist_bones] after remapping.
+    </member>
+    <member name="geometry_mode" type="int" setter="set_geometry_mode" getter="get_geometry_mode">
+      Bone Collapse keeps the skin and collapses the cut geometry. Triangle Partition separates the mesh triangles by skin weight. Restore the missing limbs before switching modes.
+    </member>
+    <member name="limb_collision_layer" type="int" setter="set_limb_collision_layer" getter="get_limb_collision_layer">
+      3D physics layers assigned to detached limb bodies, including cloned physical bones and fallback rigid bodies.
+    </member>
+    <member name="limb_collision_mask" type="int" setter="set_limb_collision_mask" getter="get_limb_collision_mask">
+      3D physics layers that detached limb bodies can collide with.
+    </member>
+    <member name="limb_lifetime" type="float" setter="set_limb_lifetime" getter="get_limb_lifetime">
+      Seconds before a detached limb removes itself. Set to zero to keep the limb until cleanup or reset.
+    </member>
+    <member name="limb_mass" type="float" setter="set_limb_mass" getter="get_limb_mass">
+      Mass in kilograms for the fallback rigid body. Articulated limbs use the masses of their physical bones.
+    </member>
+    <member name="limb_rigid_fallback_enabled" type="bool" setter="set_limb_rigid_fallback_enabled" getter="get_limb_rigid_fallback_enabled">
+      Build a single rigid body from the detached geometry when the limb has no usable physical bones.
+    </member>
+    <member name="mesh_path" type="NodePath" setter="set_mesh_path" getter="get_mesh_path">
+      Path from this component to the source [MeshInstance3D]. Leave empty to find the mesh automatically.
+    </member>
+    <member name="morph_targets_to_copy" type="PackedStringArray" setter="set_morph_targets_to_copy" getter="get_morph_targets_to_copy">
+      Names of the blend shapes whose current weights carry over to a detached limb.
+    </member>
+    <member name="network_enabled" type="bool" setter="set_network_enabled" getter="get_network_enabled">
+      Replicate cuts and resets through the active Godot multiplayer peer. The node's multiplayer authority accepts cut requests and distributes the resulting state.
+    </member>
+    <member name="override_source_mesh" type="bool" setter="set_override_source_mesh" getter="get_override_source_mesh">
+      Use [member source_mesh_component] to narrow the automatic mesh search by name when no mesh is selected by path or the [code]Dismemberment Source[/code] group.
+    </member>
+    <member name="owning_peer_id" type="int" setter="set_owning_peer_id" getter="get_owning_peer_id">
+      Multiplayer peer ID allowed to request cuts on this component. Set the node's multiplayer authority separately.
+    </member>
+    <member name="pelvis_bone_name" type="StringName" setter="set_pelvis_bone_name" getter="get_pelvis_bone_name">
+      Exact name of the pelvis bone on the source skeleton. The component requires this bone during initialization.
+    </member>
+    <member name="remapped_bones" type="Dictionary" setter="set_remapped_bones" getter="get_remapped_bones">
+      Maps incoming bone names to cut roots before filtering. For example, map a hitbox alias to a bone on the source skeleton.
+    </member>
+    <member name="skeleton_path" type="NodePath" setter="set_skeleton_path" getter="get_skeleton_path">
+      Path from this component to the source [Skeleton3D]. Leave empty to use the mesh's skeleton binding or search the nearby nodes.
+    </member>
+    <member name="source_mesh_component" type="String" setter="set_source_mesh_component" getter="get_source_mesh_component">
+      Exact [MeshInstance3D] node name to match during the automatic search when [member override_source_mesh] is enabled.
+    </member>
+    <member name="support_attached_child_meshes" type="bool" setter="set_support_attached_child_meshes" getter="get_support_attached_child_meshes">
+      Include additional skinned meshes bound to the source skeleton and transfer attachments tagged [code]Transfer Dismemberment[/code] when their bones are cut.
+    </member>
+    <member name="update_mesh_bounds" type="bool" setter="set_update_mesh_bounds" getter="get_update_mesh_bounds">
+      Use the remaining mesh's bounds for culling after a cut in Triangle Partition mode. Disable this to preserve the original bounds.
+    </member>
+    <member name="weight_threshold" type="float" setter="set_weight_threshold" getter="get_weight_threshold">
+      Minimum combined skin weight from the cut subtree for a vertex to count as part of the limb. Used for triangle partitioning and fallback collision geometry.
+    </member>
+    <member name="whitelist_bones" type="PackedStringArray" setter="set_whitelist_bones" getter="get_whitelist_bones">
+      Case-sensitive bone names allowed as cut roots after remapping. Leave empty to allow any valid bone outside [member excluded_bones].
+    </member>
+  </members>
+</class>

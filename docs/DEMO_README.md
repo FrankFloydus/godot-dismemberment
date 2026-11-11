@@ -1,0 +1,93 @@
+# godot-dismemberment demo project
+
+Import the **project.godot file beside this README** into Godot 4.7 for the
+verified local environment, then press F5. Windows x86_64 debug and release
+native libraries are included. The extension targets the Godot 4.3 API.
+
+The main scene is a first-person sci-fi range with three humanoid stations
+named **CC0 Humanoid**, **Articulated Limbs**, and **Modular / Attachments**.
+The desktop project uses Forward+ with SDFGI, volumetric fog, glow, and AgX
+tone mapping. The range and its lighting are editable in `demo/fps_range.tscn`.
+All three use the downloaded rigged
+[Grab3D Man Base Mesh](https://grab3d.com/models/characters/man-base-character/),
+published under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/),
+with its clothed skinned mesh and PBR textures. Left-click to fire the shotgun.
+The default blast casts eight rays, with one through the center of the crosshair.
+Each ray can mark the environment and each target receives up to one hit per
+blast. Impacts on detached limbs emit blood at the contact point. Missing limbs
+lose their original hitboxes, and the remaining body ragdolls after a head or
+major-leg cut.
+
+Metal surfaces give a short contact glint and amber sparks. Floor impacts
+favor dust. The effects start at the pellet contacts and fade while the marks
+stay on the surface.
+
+The shotgun viewmodel is editable in `demo/fps_player.tscn`. Its base mesh is
+the CC0 [Bullpup Shotgun, Fitted by 3DAssets.dev](https://3dassets.dev/assets/mega-weapon-pack-bullpup-shotgun-loadout-0f97efcb).
+The muzzle follows the model's barrel socket. The **Flash** node holds editable
+one-shot 3D particle emitters for the hot core, flame, and sparks. Each pellet's
+short tracer starts at the barrel and ends at its own ray impact or maximum
+range.
+
+Each normalized rig has 17 authored physical bodies, fitted collision shapes,
+constrained joints and 75 kg total mass. The project uses **GodotPhysics3D at
+240 physics ticks per second and 32 solver iterations**. The fitted hand
+colliders use lower friction to reduce sticking during floor contact. The
+third station adds a transferable hand accessory and a remapped hit proxy.
+The demo's filters protect the pelvis and torso, so a central-body shot can
+wound without severing.
+
+- **WASD:** move; **mouse:** look; **Shift:** sprint; **Space:** jump.
+- **Left mouse:** fire the shotgun.
+- **R:** reset the current target; **1 / 2 / 3:** move to a target station.
+- **F:** blood-only shot; **X:** hide-only shot; **C:** clean up detached limbs.
+- **Esc:** release/capture the mouse.
+
+Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
+**FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,
+forward and upward dismemberment impulse, detached-limb impulse, shot timing,
+and range.
+**Player Movement** contains the movement and mouse settings. Under
+**Stations**, each **Target** contains its editable **GoreComponent**, skinned
+mesh, hitboxes, and physical bones. Move a station's **PlayerSpawn** and
+**InitialAim** markers to change where the player starts and looks.
+
+**Weapon Motion** controls the mouse sway, movement sway, and firing shake.
+The **RangeAudio** scene contains the editable shotgun, footsteps, and room-tone
+players, along with separate positional recordings for flesh hits and cuts.
+Footsteps follow the distance walked on the ground. The **Range Shotgun** bus
+adds short indoor reflections and can be adjusted in the editor's Audio panel.
+The **Range Body** bus controls the flesh and sever cues. It briefly reduces
+the shotgun layer when a body cue plays.
+Optional WAVs in `user://range_audio` replace the corresponding bundled takes.
+The supported stems are `shotgun_01` through `shotgun_04`, `step_01` through
+`step_04`, `flesh_hit_01` through `flesh_hit_03`, and `sever_01` through `sever_03`.
+
+`demo/humanoid.tscn`, `demo/crawler.tscn`, and `demo/modular.tscn` inherit this range
+and start at stations 1, 2, and 3. The original imported walk/run clips remain in
+`demo/assets/humanoid/humanoid.glb` and are used as controls in regression tests.
+
+To install the plugin in another project, copy `addons/godot-dismemberment/` to its
+`addons` directory, restart the editor and enable the plugin under Project
+Settings > Plugins. Select a Skeleton3D and use its setup dock.
+
+For another character, author its physical-bone chain and configure exact source
+paths, pelvis name and allowed cut roots before initialization. The single convex
+rigid-body fallback is an optional convenience; `limb_rigid_fallback_enabled`
+defaults to false. The addon does not change another project's physics solver or
+timestep. `docs/USAGE.md` describes the setup and gameplay hooks.
+
+The default source-hide path operates on renderer skin matrices while preserving
+animation/IK poses. Actual-render tests cover the reported floating-head defect,
+R reset followed by new cuts, and additional cuts while already ragdolled. The
+reset correction restores coherent body poses and rebuilds joint frames with
+their authored settings. Original animation and component-free ragdoll controls
+confirm this downloaded mesh is usable; detailed evidence and limits are in
+`docs/REAL_MODEL_GEOMETRY_AUDIT.md`.
+
+This demo ZIP contains the runnable project. Use the separate source ZIP for
+the C++ source, build scripts and pinned godot-cpp dependency. `docs/VALIDATION.md`
+records completed checks; `docs/PARITY.md` records cross-engine mappings and
+remaining equivalence checks. The bundled blood masks and cloud noise tile were
+generated procedurally for this port. Asset provenance is in
+`THIRD_PARTY_NOTICES.md`.

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="GoreComponent" inherits="DismembermentComponent" version="4.3">
+  <brief_description>Dismemberment with configurable blood painting, particles and pools.</brief_description>
+  <description>The three effect toggles control automatic cut hooks. Direct effect calls can also be used independently. The default paint mask uses vertex blue; preserve that channel for the effect. A standard Godot material can be converted automatically. Custom shaders should consume the paint mask themselves. Surface filters are Godot physics collision layer masks. Particle overrides accept a PackedScene.</description>
+  <members>
+    <member name="allowed_surface_types_for_blood_decals" type="int" setter="set_allowed_surface_types_for_blood_decals" getter="get_allowed_surface_types_for_blood_decals" default="1">
+      The 3D physics layers the pool raycast checks for surfaces that can receive blood.
+    </member>
+    <member name="auto_apply_blood_material" type="bool" setter="set_auto_apply_blood_material" getter="get_auto_apply_blood_material" default="true">
+      Automatically converts standard materials on painted meshes to use the built-in blood shader. Custom shaders can read the chosen vertex color channel directly.
+    </member>
+    <member name="blood_animation_primitive_index" type="int" setter="set_blood_animation_primitive_index" getter="get_blood_animation_primitive_index" default="0">
+      Legacy value retained for scene and script compatibility. The current paint animation uses a shader uniform.
+    </member>
+    <member name="blood_animation_time" type="float" setter="set_blood_animation_time" getter="get_blood_animation_time" default="1.0">
+      Duration of the first blood paint reveal on the main body, in seconds. Detached limbs and other painted meshes reveal their paint immediately.
+    </member>
+    <member name="blood_decal" type="Material" setter="set_blood_decal" getter="get_blood_decal">
+      The custom pool material used when [member override_blood_decal] is enabled. Assigning one takes over the pool appearance from the built-in material.
+    </member>
+    <member name="blood_decal_lifetime" type="float" setter="set_blood_decal_lifetime" getter="get_blood_decal_lifetime" default="60.0">
+      The pool fade-out duration in seconds. The fade starts after one fifth of this time. Set to [code]0[/code] to keep the pool until it is removed.
+    </member>
+    <member name="blood_decal_texture" type="Texture2D" setter="set_blood_decal_texture" getter="get_blood_decal_texture">
+      The replacement image for the built-in pool effect. The texture alpha defines the pool's silhouette.
+    </member>
+    <member name="blood_decal_tile_size" type="float" setter="set_blood_decal_tile_size" getter="get_blood_decal_tile_size" default="7.5">
+      The size of one world-space noise tile, in meters, for the built-in fallback pool material. Larger values make the detail repeat less often.
+    </member>
+    <member name="blood_paint_falloff" type="float" setter="set_blood_paint_falloff" getter="get_blood_paint_falloff" default="0.2">
+      Controls the hardness of the paint mask at the edge of a cut. Higher values give a fuller center and a sharper edge.
+    </member>
+    <member name="blood_paint_limb_radius" type="float" setter="set_blood_paint_limb_radius" getter="get_blood_paint_limb_radius" default="0.75">
+      The radius of blood paint around the cut on the detached limb, in meters.
+    </member>
+    <member name="blood_paint_radius" type="float" setter="set_blood_paint_radius" getter="get_blood_paint_radius" default="1.2">
+      The radius of blood paint around the cut on the source body, in meters.
+    </member>
+    <member name="blood_paint_scale" type="float" setter="set_blood_paint_scale" getter="get_blood_paint_scale" default="1.0">
+      Legacy value retained for scene and script compatibility. Use the paint radii to adjust the size of new paint marks.
+    </member>
+    <member name="blood_particle_scale" type="float" setter="set_blood_particle_scale" getter="get_blood_particle_scale" default="1.0">
+      The scale of the blood burst. This affects the built-in particles and custom burst scenes.
+    </member>
+    <member name="blood_pool_scale" type="float" setter="set_blood_pool_scale" getter="get_blood_pool_scale" default="1.0">
+      Multiplier for the width and length of each spawned blood pool.
+    </member>
+    <member name="blood_vertex_channel" type="int" setter="set_blood_vertex_channel" getter="get_blood_vertex_channel" default="2">
+      The vertex color channel used as the blood paint mask. Reserve that channel on painted meshes. The default is blue.
+    </member>
+    <member name="enable_blood_particles" type="bool" setter="set_enable_blood_particles" getter="get_enable_blood_particles" default="true">
+      Spawns a blood burst automatically when a limb is cut. Manual effect calls are independent of this toggle.
+    </member>
+    <member name="enable_blood_pool_decal" type="bool" setter="set_enable_blood_pool_decal" getter="get_enable_blood_pool_decal" default="true">
+      Casts a ray from each cut and places a blood pool on a matching surface. Manual effect calls are independent of this toggle.
+    </member>
+    <member name="enable_blood_skin_painting" type="bool" setter="set_enable_blood_skin_painting" getter="get_enable_blood_skin_painting" default="true">
+      Paints blood around each cut on the source body and detached limb. Manual paint calls are independent of this toggle.
+    </member>
+    <member name="fx_blood_burst" type="PackedScene" setter="set_fx_blood_burst" getter="get_fx_blood_burst">
+      The custom blood burst scene. It needs a [Node3D] root and is instantiated at the cut point.
+    </member>
+    <member name="override_blood_decal" type="bool" setter="set_override_blood_decal" getter="get_override_blood_decal" default="false">
+      Uses [member blood_decal] as the pool material when one is assigned. The built-in material is used while the slot is empty.
+    </member>
+    <member name="override_blood_decal_texture" type="bool" setter="set_override_blood_decal_texture" getter="get_override_blood_decal_texture" default="false">
+      Lets [member blood_decal_texture] replace the default blood pool image. This applies to the built-in pool material.
+    </member>
+    <member name="override_blood_particles" type="bool" setter="set_override_blood_particles" getter="get_override_blood_particles" default="false">
+      Uses [member fx_blood_burst] in place of the built-in particle effect. Assign a valid scene to spawn a burst.
+    </member>
+    <member name="use_world_space_tiling" type="bool" setter="set_use_world_space_tiling" getter="get_use_world_space_tiling" default="true">
+      Uses world coordinates for the built-in fallback material's noise and stretches the pool along the splatter direction. Turning this off uses local texture coordinates and a round footprint.
+    </member>
+  </members>
+</class>

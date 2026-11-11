@@ -1,0 +1,89 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://demo/fps_audio.gd" id="1_script"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/shotgun_01.wav" id="2_shot"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/shotgun_02.wav" id="3_shot"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/shotgun_03.wav" id="4_shot"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/shotgun_04.wav" id="5_shot"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/step_01.wav" id="6_step"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/step_02.wav" id="7_step"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/step_03.wav" id="8_step"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/step_04.wav" id="9_step"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/range_room_tone.ogg" id="10_ambience"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/flesh_hit_01.wav" id="11_flesh"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/flesh_hit_02.wav" id="12_flesh"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/flesh_hit_03.wav" id="13_flesh"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/sever_01.wav" id="14_sever"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/sever_02.wav" id="15_sever"]
+[ext_resource type="AudioStream" path="res://demo/assets/audio/sever_03.wav" id="16_sever"]
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_shotgun"]
+resource_local_to_scene = true
+resource_name = "Shotgun variations"
+random_pitch = 1.035
+random_volume_offset_db = 0.8
+streams_count = 4
+stream_0/stream = ExtResource("2_shot")
+stream_1/stream = ExtResource("3_shot")
+stream_2/stream = ExtResource("4_shot")
+stream_3/stream = ExtResource("5_shot")
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_footsteps"]
+resource_local_to_scene = true
+resource_name = "Concrete footstep variations"
+random_pitch = 1.065
+random_volume_offset_db = 1.5
+streams_count = 4
+stream_0/stream = ExtResource("6_step")
+stream_1/stream = ExtResource("7_step")
+stream_2/stream = ExtResource("8_step")
+stream_3/stream = ExtResource("9_step")
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_flesh"]
+resource_local_to_scene = true
+resource_name = "Body impact variations"
+random_pitch = 1.05
+random_volume_offset_db = 0.8
+streams_count = 3
+stream_0/stream = ExtResource("11_flesh")
+stream_1/stream = ExtResource("12_flesh")
+stream_2/stream = ExtResource("13_flesh")
+
+[sub_resource type="AudioStreamRandomizer" id="AudioStreamRandomizer_sever"]
+resource_local_to_scene = true
+resource_name = "Sever variations"
+random_pitch = 1.04
+random_volume_offset_db = 0.8
+streams_count = 3
+stream_0/stream = ExtResource("14_sever")
+stream_1/stream = ExtResource("15_sever")
+stream_2/stream = ExtResource("16_sever")
+
+[node name="RangeAudio" type="Node"]
+script = ExtResource("1_script")
+flesh_hits = SubResource("AudioStreamRandomizer_flesh")
+sever_sounds = SubResource("AudioStreamRandomizer_sever")
+
+[node name="Shotgun" type="AudioStreamPlayer" parent="."]
+stream = SubResource("AudioStreamRandomizer_shotgun")
+volume_db = -6.0
+max_polyphony = 4
+bus = &"Range Shotgun"
+
+[node name="Footsteps" type="AudioStreamPlayer" parent="."]
+stream = SubResource("AudioStreamRandomizer_footsteps")
+volume_db = -15.0
+max_polyphony = 2
+
+[node name="RoomTone" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("10_ambience")
+volume_db = -13.0
+
+[node name="BodyVoice" type="AudioStreamPlayer3D" parent="."]
+volume_db = -1.5
+unit_size = 8.0
+max_db = 2.0
+max_distance = 26.0
+panning_strength = 0.85
+attenuation_filter_cutoff_hz = 10000.0
+bus = &"Range Body"

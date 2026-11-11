@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="DismemberedLimb" inherits="RigidBody3D" version="4.3">
+  <brief_description>A detached limb created by a dismemberment component.</brief_description>
+  <description>Holds the detached meshes and manages the limb's physics and lifetime.</description>
+  <members>
+    <member name="bone_name" type="StringName" setter="set_bone_name" getter="get_bone_name" default="&amp;&quot;&quot;">
+      Name of the bone at the root of the detached limb. The dismemberment component sets it when creating the limb.
+    </member>
+    <member name="lifetime" type="float" setter="set_lifetime" getter="get_lifetime" default="0.0">
+      Time in seconds before the detached limb removes itself. Use [code]0[/code] to keep it until it is removed by the component or the scene.
+    </member>
+  </members>
+</class>

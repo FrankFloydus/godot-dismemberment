@@ -1,0 +1,2318 @@
+[gd_scene format=3 uid="uid://bykwyx3mtj8eb"]
+
+[ext_resource type="FontFile" uid="uid://csocelt6c1tlo" path="res://demo/assets/hud_fonts/IBMPlexMono-Medium.ttf" id="Font_code"]
+[ext_resource type="FontFile" uid="uid://bbgr71lubtaqm" path="res://demo/assets/hud_fonts/BarlowSemiCondensed-SemiBold.ttf" id="Font_sign"]
+[ext_resource type="Shader" uid="uid://2c3q2ln8vhcs" path="res://demo/range/bay_backdrop.gdshader" id="Shader_bay"]
+[ext_resource type="Shader" uid="uid://f1cw5ro2lps" path="res://demo/range/industrial_deck.gdshader" id="Shader_deck"]
+
+[sub_resource type="Environment" id="Environment_Range"]
+background_mode = 1
+background_color = Color(0.026, 0.041, 0.061, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.64, 0.73, 0.86, 1)
+ambient_light_energy = 0.35
+tonemap_mode = 3
+tonemap_exposure = 1.44
+tonemap_agx_white = 12.0
+tonemap_agx_contrast = 1.18
+ssr_enabled = true
+ssao_enabled = true
+ssil_enabled = true
+sdfgi_enabled = true
+sdfgi_use_occlusion = true
+sdfgi_read_sky_light = false
+sdfgi_bounce_feedback = 0.32
+sdfgi_cascades = 3
+sdfgi_min_cell_size = 0.32
+sdfgi_y_scale = 0
+sdfgi_energy = 0.74
+glow_enabled = true
+glow_levels/1 = 0.08
+glow_levels/2 = 0.3
+glow_levels/3 = 0.55
+glow_levels/4 = 0.36
+glow_levels/5 = 0.15
+glow_normalized = true
+glow_intensity = 0.78
+glow_strength = 1.1
+glow_bloom = 0.1
+glow_blend_mode = 0
+glow_hdr_threshold = 0.74
+glow_hdr_scale = 1.65
+fog_enabled = true
+fog_light_color = Color(0.21, 0.28, 0.36, 1)
+fog_density = 0.004
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.036
+volumetric_fog_albedo = Color(0.59, 0.72, 0.85, 1)
+volumetric_fog_emission = Color(0.06, 0.09, 0.13, 1)
+volumetric_fog_emission_energy = 0.23
+volumetric_fog_gi_inject = 0.52
+volumetric_fog_length = 24.0
+volumetric_fog_detail_spread = 1.55
+adjustment_enabled = true
+adjustment_saturation = 1.04
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_trabk"]
+size = Vector3(28, 0.4, 32)
+
+[sub_resource type="ShaderMaterial" id="Material_Deck"]
+render_priority = 0
+shader = ExtResource("Shader_deck")
+shader_parameter/deck_color = Color(0.15, 0.185, 0.225, 1)
+shader_parameter/panel_size = 2.65
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_r16x7"]
+size = Vector2(28, 32)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_d8cme"]
+size = Vector3(18, 4.2, 0.4)
+
+[sub_resource type="StandardMaterial3D" id="Material_Structural_steel"]
+albedo_color = Color(0.16, 0.195, 0.235, 1)
+metallic = 0.22
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="BoxMesh_xbqca"]
+size = Vector3(18, 4.2, 0.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1fa3r"]
+size = Vector3(0.35, 1.2, 17)
+
+[sub_resource type="BoxMesh" id="BoxMesh_pfaox"]
+size = Vector3(0.35, 1.2, 17)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_gc1k1"]
+size = Vector3(0.35, 1.2, 17)
+
+[sub_resource type="BoxMesh" id="BoxMesh_dew78"]
+size = Vector3(0.35, 1.2, 17)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ghwdw"]
+size = Vector3(18, 1.2, 0.3)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ef3c0"]
+size = Vector3(18, 1.2, 0.3)
+
+[sub_resource type="StandardMaterial3D" id="Material_Ceiling"]
+albedo_color = Color(0.08, 0.105, 0.14, 1)
+metallic = 0.08
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="BoxMesh_ahdkj"]
+size = Vector3(18, 0.12, 17)
+
+[sub_resource type="StandardMaterial3D" id="Material_Service_panel"]
+albedo_color = Color(0.108, 0.139, 0.171, 1)
+metallic = 0.25
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="Geometry_01"]
+size = Vector3(17.87, 0.44, 0.28)
+
+[sub_resource type="StandardMaterial3D" id="Material_Machined_edge"]
+albedo_color = Color(0.36, 0.398, 0.44, 1)
+metallic = 0.35
+roughness = 0.51
+
+[sub_resource type="BoxMesh" id="Geometry_02"]
+size = Vector3(17.87, 0.04, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="Material_Recessed_rail"]
+albedo_color = Color(0.065, 0.087, 0.117, 1)
+metallic = 0.23
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="Geometry_03"]
+size = Vector3(17.88, 0.38, 0.34)
+
+[sub_resource type="BoxMesh" id="Geometry_04"]
+size = Vector3(17.88, 0.05, 0.17)
+
+[sub_resource type="StandardMaterial3D" id="Material_Shadow_reveal"]
+albedo_color = Color(0.027, 0.039, 0.053, 1)
+metallic = 0.05
+roughness = 0.79
+
+[sub_resource type="BoxMesh" id="Geometry_05"]
+size = Vector3(4.36, 0.31, 0.13)
+
+[sub_resource type="StandardMaterial3D" id="Material_Warm_service_light"]
+albedo_color = Color(1, 0.81, 0.57, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(1, 0.83, 0.68, 1)
+emission_energy_multiplier = 1.62
+
+[sub_resource type="BoxMesh" id="Geometry_06"]
+size = Vector3(0.23, 0.018, 0.027)
+
+[sub_resource type="BoxMesh" id="Geometry_07"]
+size = Vector3(0.19, 2.92, 16.7)
+
+[sub_resource type="BoxMesh" id="Geometry_08"]
+size = Vector3(0.075, 0.09, 16.76)
+
+[sub_resource type="BoxMesh" id="Geometry_09"]
+size = Vector3(0.07, 0.19, 16.7)
+
+[sub_resource type="BoxMesh" id="Geometry_10"]
+size = Vector3(0.11, 2.26, 2.1)
+
+[sub_resource type="BoxMesh" id="Geometry_11"]
+size = Vector3(0.14, 2.47, 0.062)
+
+[sub_resource type="BoxMesh" id="Geometry_12"]
+size = Vector3(0.046, 0.034, 1.19)
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_housing"]
+albedo_color = Color(0.23, 0.26, 0.31, 1)
+metallic = 0.27
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="Geometry_13"]
+size = Vector3(1.33, 3.3, 0.25)
+
+[sub_resource type="BoxMesh" id="Geometry_14"]
+size = Vector3(0.96, 2.88, 0.09)
+
+[sub_resource type="BoxMesh" id="Geometry_15"]
+size = Vector3(0.1, 0.48, 0.09)
+
+[sub_resource type="BoxMesh" id="Geometry_16"]
+size = Vector3(0.69, 0.028, 0.04)
+
+[sub_resource type="BoxMesh" id="Geometry_17"]
+size = Vector3(18.2, 2.93, 0.2)
+
+[sub_resource type="BoxMesh" id="Geometry_18"]
+size = Vector3(2.59, 2.39, 0.18)
+
+[sub_resource type="BoxMesh" id="Geometry_19"]
+size = Vector3(1.28, 0.032, 0.037)
+
+[sub_resource type="BoxMesh" id="Geometry_20"]
+size = Vector3(0.19, 0.2, 15.9)
+
+[sub_resource type="BoxMesh" id="Geometry_21"]
+size = Vector3(0.1, 0.031, 15.9)
+
+[sub_resource type="BoxMesh" id="Geometry_22"]
+size = Vector3(17.9, 0.19, 0.15)
+
+[sub_resource type="BoxMesh" id="Geometry_23"]
+size = Vector3(0.32, 0.09, 1.21)
+
+[sub_resource type="StandardMaterial3D" id="Material_Ceiling_diffuser"]
+albedo_color = Color(0.79, 0.88, 0.96, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(0.78, 0.89, 1, 1)
+emission_energy_multiplier = 1.76
+
+[sub_resource type="BoxMesh" id="Geometry_24"]
+size = Vector3(0.22, 0.027, 1.07)
+
+[sub_resource type="FogMaterial" id="FogMaterial_Overhead"]
+density = 0.07
+albedo = Color(0.64, 0.74, 0.89, 1)
+edge_fade = 0.35
+
+[sub_resource type="ShaderMaterial" id="Material_Bay_01_backdrop"]
+render_priority = 0
+shader = ExtResource("Shader_bay")
+shader_parameter/accent = Color(0.22, 0.81, 0.89, 1)
+shader_parameter/panel_color = Color(0.115, 0.159, 0.195, 1)
+
+[sub_resource type="QuadMesh" id="Geometry_25"]
+size = Vector2(3.64, 2.94)
+
+[sub_resource type="BoxShape3D" id="Shape_ShotBackboard"]
+size = Vector3(3.64, 2.94, 0.02)
+
+[sub_resource type="BoxMesh" id="Geometry_26"]
+size = Vector3(3.75, 0.59, 0.24)
+
+[sub_resource type="BoxMesh" id="Geometry_27"]
+size = Vector3(3.51, 0.39, 0.042)
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_01_neon"]
+albedo_color = Color(0.22, 0.81, 0.89, 1)
+roughness = 0.39
+emission_enabled = true
+emission = Color(0.22, 0.81, 0.89, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="BoxMesh" id="Geometry_28"]
+size = Vector3(3.47, 0.021, 0.021)
+
+[sub_resource type="BoxMesh" id="Geometry_29"]
+size = Vector3(0.014, 0.24, 0.022)
+
+[sub_resource type="BoxMesh" id="Geometry_30"]
+size = Vector3(3.71, 0.32, 0.26)
+
+[sub_resource type="BoxMesh" id="Geometry_31"]
+size = Vector3(3.31, 0.115, 0.047)
+
+[sub_resource type="BoxMesh" id="Geometry_32"]
+size = Vector3(0.213, 2.83, 0.29)
+
+[sub_resource type="BoxMesh" id="Geometry_33"]
+size = Vector3(0.034, 2.66, 0.049)
+
+[sub_resource type="BoxMesh" id="Geometry_34"]
+size = Vector3(0.062, 2.53, 0.039)
+
+[sub_resource type="BoxMesh" id="Geometry_35"]
+size = Vector3(0.021, 1.53, 0.024)
+
+[sub_resource type="BoxMesh" id="Geometry_36"]
+size = Vector3(0.021, 0.22, 0.024)
+
+[sub_resource type="BoxMesh" id="Geometry_37"]
+size = Vector3(0.063, 0.3, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_01_deck_guide"]
+albedo_color = Color(0.11, 0.405, 0.445, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(0.22, 0.81, 0.89, 1)
+emission_energy_multiplier = 0.32
+
+[sub_resource type="BoxMesh" id="Geometry_38"]
+size = Vector3(0.036, 0.008, 10.85)
+
+[sub_resource type="BoxMesh" id="Geometry_39"]
+size = Vector3(0.031, 0.031, 0.014)
+
+[sub_resource type="MultiMesh" id="Instances_Bay01HousingFasteners"]
+transform_format = 1
+instance_count = 8
+mesh = SubResource("Geometry_39")
+buffer = PackedFloat32Array(0.707107, -0.707107, 0, -6.091, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -6.091, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -6.091, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -6.091, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -2.309, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -2.309, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -2.309, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -2.309, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281)
+
+[sub_resource type="BoxMesh" id="Geometry_40"]
+size = Vector3(0.123, 0.006, 0.026)
+
+[sub_resource type="MultiMesh" id="Instances_Bay01DistanceTicks"]
+transform_format = 1
+instance_count = 18
+mesh = SubResource("Geometry_40")
+buffer = PackedFloat32Array(1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, -5.785, 0, 1, 0, -0.022, 0, 0, 1, -0.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, -2.615, 0, 1, 0, -0.022, 0, 0, 1, -0.9)
+
+[sub_resource type="BoxMesh" id="Geometry_41"]
+size = Vector3(3.34, 0.008, 0.061)
+
+[sub_resource type="BoxMesh" id="Geometry_42"]
+size = Vector3(0.27, 0.007, 0.035)
+
+[sub_resource type="MultiMesh" id="Instances_Bay01TargetCrossbars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_42")
+buffer = PackedFloat32Array(1, 0, 0, -4.91, 0, 1, 0, -0.022, 0, 0, 1, -7.65, 1, 0, 0, -4.91, 0, 1, 0, -0.022, 0, 0, 1, -6.35, 1, 0, 0, -3.49, 0, 1, 0, -0.022, 0, 0, 1, -7.65, 1, 0, 0, -3.49, 0, 1, 0, -0.022, 0, 0, 1, -6.35)
+
+[sub_resource type="BoxMesh" id="Geometry_43"]
+size = Vector3(0.035, 0.007, 0.25)
+
+[sub_resource type="MultiMesh" id="Instances_Bay01TargetSidebars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_43")
+buffer = PackedFloat32Array(1, 0, 0, -5.026, 0, 1, 0, -0.022, 0, 0, 1, -7.54, 1, 0, 0, -5.026, 0, 1, 0, -0.022, 0, 0, 1, -6.46, 1, 0, 0, -3.374, 0, 1, 0, -0.022, 0, 0, 1, -7.54, 1, 0, 0, -3.374, 0, 1, 0, -0.022, 0, 0, 1, -6.46)
+
+[sub_resource type="BoxMesh" id="Geometry_44"]
+size = Vector3(2.65, 0.19, 0.66)
+
+[sub_resource type="BoxMesh" id="Geometry_45"]
+size = Vector3(2.33, 0.032, 0.34)
+
+[sub_resource type="BoxMesh" id="Geometry_46"]
+size = Vector3(2.19, 0.027, 0.029)
+
+[sub_resource type="ShaderMaterial" id="Material_Bay_02_backdrop"]
+render_priority = 0
+shader = ExtResource("Shader_bay")
+shader_parameter/accent = Color(0.99, 0.51, 0.19, 1)
+shader_parameter/panel_color = Color(0.115, 0.159, 0.195, 1)
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_02_neon"]
+albedo_color = Color(0.99, 0.51, 0.19, 1)
+roughness = 0.39
+emission_enabled = true
+emission = Color(0.99, 0.51, 0.19, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_02_deck_guide"]
+albedo_color = Color(0.495, 0.255, 0.095, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(0.99, 0.51, 0.19, 1)
+emission_energy_multiplier = 0.32
+
+[sub_resource type="MultiMesh" id="Instances_Bay02HousingFasteners"]
+transform_format = 1
+instance_count = 8
+mesh = SubResource("Geometry_39")
+buffer = PackedFloat32Array(0.707107, -0.707107, 0, -1.891, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -1.891, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -1.891, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, -1.891, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 1.891, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 1.891, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 1.891, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 1.891, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281)
+
+[sub_resource type="MultiMesh" id="Instances_Bay02DistanceTicks"]
+transform_format = 1
+instance_count = 18
+mesh = SubResource("Geometry_40")
+buffer = PackedFloat32Array(1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, -1.585, 0, 1, 0, -0.022, 0, 0, 1, -0.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, 1.585, 0, 1, 0, -0.022, 0, 0, 1, -0.9)
+
+[sub_resource type="MultiMesh" id="Instances_Bay02TargetCrossbars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_42")
+buffer = PackedFloat32Array(1, 0, 0, -0.71, 0, 1, 0, -0.022, 0, 0, 1, -8.65, 1, 0, 0, -0.71, 0, 1, 0, -0.022, 0, 0, 1, -7.35, 1, 0, 0, 0.71, 0, 1, 0, -0.022, 0, 0, 1, -8.65, 1, 0, 0, 0.71, 0, 1, 0, -0.022, 0, 0, 1, -7.35)
+
+[sub_resource type="MultiMesh" id="Instances_Bay02TargetSidebars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_43")
+buffer = PackedFloat32Array(1, 0, 0, -0.826, 0, 1, 0, -0.022, 0, 0, 1, -8.54, 1, 0, 0, -0.826, 0, 1, 0, -0.022, 0, 0, 1, -7.46, 1, 0, 0, 0.826, 0, 1, 0, -0.022, 0, 0, 1, -8.54, 1, 0, 0, 0.826, 0, 1, 0, -0.022, 0, 0, 1, -7.46)
+
+[sub_resource type="ShaderMaterial" id="Material_Bay_03_backdrop"]
+render_priority = 0
+shader = ExtResource("Shader_bay")
+shader_parameter/accent = Color(0.57, 0.43, 1, 1)
+shader_parameter/panel_color = Color(0.115, 0.159, 0.195, 1)
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_03_neon"]
+albedo_color = Color(0.57, 0.43, 1, 1)
+roughness = 0.39
+emission_enabled = true
+emission = Color(0.57, 0.43, 1, 1)
+emission_energy_multiplier = 3.5
+
+[sub_resource type="StandardMaterial3D" id="Material_Bay_03_deck_guide"]
+albedo_color = Color(0.285, 0.215, 0.5, 1)
+roughness = 0.62
+emission_enabled = true
+emission = Color(0.57, 0.43, 1, 1)
+emission_energy_multiplier = 0.32
+
+[sub_resource type="MultiMesh" id="Instances_Bay03HousingFasteners"]
+transform_format = 1
+instance_count = 8
+mesh = SubResource("Geometry_39")
+buffer = PackedFloat32Array(0.707107, -0.707107, 0, 2.309, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 2.309, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 2.309, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 2.309, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 6.091, 0.707107, 0.707107, 0, 0.52, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 6.091, 0.707107, 0.707107, 0, 1.16, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 6.091, 0.707107, 0.707107, 0, 2.78, 0, 0, 1, -10.281, 0.707107, -0.707107, 0, 6.091, 0.707107, 0.707107, 0, 3.06, 0, 0, 1, -10.281)
+
+[sub_resource type="MultiMesh" id="Instances_Bay03DistanceTicks"]
+transform_format = 1
+instance_count = 18
+mesh = SubResource("Geometry_40")
+buffer = PackedFloat32Array(1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, 2.615, 0, 1, 0, -0.022, 0, 0, 1, -0.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -8.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -7.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -6.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -5.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -4.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -3.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -2.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -1.9, 1, 0, 0, 5.785, 0, 1, 0, -0.022, 0, 0, 1, -0.9)
+
+[sub_resource type="MultiMesh" id="Instances_Bay03TargetCrossbars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_42")
+buffer = PackedFloat32Array(1, 0, 0, 3.49, 0, 1, 0, -0.022, 0, 0, 1, -7.65, 1, 0, 0, 3.49, 0, 1, 0, -0.022, 0, 0, 1, -6.35, 1, 0, 0, 4.91, 0, 1, 0, -0.022, 0, 0, 1, -7.65, 1, 0, 0, 4.91, 0, 1, 0, -0.022, 0, 0, 1, -6.35)
+
+[sub_resource type="MultiMesh" id="Instances_Bay03TargetSidebars"]
+transform_format = 1
+instance_count = 4
+mesh = SubResource("Geometry_43")
+buffer = PackedFloat32Array(1, 0, 0, 3.374, 0, 1, 0, -0.022, 0, 0, 1, -7.54, 1, 0, 0, 3.374, 0, 1, 0, -0.022, 0, 0, 1, -6.46, 1, 0, 0, 5.026, 0, 1, 0, -0.022, 0, 0, 1, -7.54, 1, 0, 0, 5.026, 0, 1, 0, -0.022, 0, 0, 1, -6.46)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_Ceiling"]
+size = Vector3(18, 0.12, 17)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_BulkheadTop"]
+size = Vector3(17.87, 0.44, 0.28)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_BulkheadBase"]
+size = Vector3(17.88, 0.38, 0.34)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_TitleBacking"]
+size = Vector3(4.36, 0.31, 0.13)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_WestWallUpper"]
+size = Vector3(0.19, 2.92, 16.7)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_WestWallPanel"]
+size = Vector3(0.11, 2.26, 2.1)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_WestServicePier"]
+size = Vector3(1.33, 3.3, 0.25)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_WestServicePierInner"]
+size = Vector3(0.96, 2.88, 0.09)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_RearWallUpper"]
+size = Vector3(18.2, 2.93, 0.2)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_RearPanel"]
+size = Vector3(2.59, 2.39, 0.18)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_CeilingRib"]
+size = Vector3(0.19, 0.2, 15.9)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_CeilingRibTrim"]
+size = Vector3(0.1, 0.031, 15.9)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_CrossBeam"]
+size = Vector3(17.9, 0.19, 0.15)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_WestCeilingDiffuser"]
+size = Vector3(0.22, 0.027, 1.07)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_UpperHousing"]
+size = Vector3(3.75, 0.59, 0.24)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_SignInset"]
+size = Vector3(3.51, 0.39, 0.042)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_Kickplate"]
+size = Vector3(3.71, 0.32, 0.26)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_KickplateInset"]
+size = Vector3(3.31, 0.115, 0.047)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_LeftUpright"]
+size = Vector3(0.213, 2.83, 0.29)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_BayLuminaireHousing"]
+size = Vector3(2.65, 0.19, 0.66)
+
+[sub_resource type="BoxShape3D" id="Shape_Shot_BayLightPanel"]
+size = Vector3(2.33, 0.032, 0.34)
+
+[node name="Range" type="Node3D" unique_id=838689679]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=632235636]
+environment = SubResource("Environment_Range")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1692020876]
+transform = Transform3D(0.95105654, 0.24350871, -0.19024988, 0, 0.6156615, 0.7880107, 0.309017, -0.74944276, 0.5855289, 0, 0, 0)
+light_color = Color(0.88, 0.92, 1, 1)
+light_energy = 0.63
+light_volumetric_fog_energy = 0.18
+shadow_enabled = true
+directional_shadow_max_distance = 26.0
+
+[node name="BloodReceivingFloor" type="StaticBody3D" parent="." unique_id=203155539]
+metadata/dusty_impact = true
+
+[node name="FloorCollision" type="CollisionShape3D" parent="BloodReceivingFloor" unique_id=1502717760]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.23, -4)
+shape = SubResource("BoxShape3D_trabk")
+
+[node name="GridSurface" type="MeshInstance3D" parent="BloodReceivingFloor" unique_id=593030115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.03, -4)
+material_override = SubResource("Material_Deck")
+mesh = SubResource("PlaneMesh_r16x7")
+
+[node name="BackWall" type="StaticBody3D" parent="." unique_id=1903514740]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -11)
+
+[node name="Collision" type="CollisionShape3D" parent="BackWall" unique_id=1443561405]
+shape = SubResource("BoxShape3D_d8cme")
+
+[node name="Surface" type="MeshInstance3D" parent="BackWall" unique_id=1620293133]
+material_override = SubResource("Material_Structural_steel")
+mesh = SubResource("BoxMesh_xbqca")
+
+[node name="LeftBarrier" type="StaticBody3D" parent="." unique_id=206449215]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.6, -3)
+
+[node name="Collision" type="CollisionShape3D" parent="LeftBarrier" unique_id=155869027]
+shape = SubResource("BoxShape3D_1fa3r")
+
+[node name="Surface" type="MeshInstance3D" parent="LeftBarrier" unique_id=411469158]
+material_override = SubResource("Material_Structural_steel")
+mesh = SubResource("BoxMesh_pfaox")
+
+[node name="RightBarrier" type="StaticBody3D" parent="." unique_id=1346669611]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.6, -3)
+
+[node name="Collision" type="CollisionShape3D" parent="RightBarrier" unique_id=1924829230]
+shape = SubResource("BoxShape3D_gc1k1")
+
+[node name="Surface" type="MeshInstance3D" parent="RightBarrier" unique_id=155079436]
+material_override = SubResource("Material_Structural_steel")
+mesh = SubResource("BoxMesh_dew78")
+
+[node name="RearBarrier" type="StaticBody3D" parent="." unique_id=329585444]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 5.4)
+
+[node name="Collision" type="CollisionShape3D" parent="RearBarrier" unique_id=986895236]
+shape = SubResource("BoxShape3D_ghwdw")
+
+[node name="Surface" type="MeshInstance3D" parent="RearBarrier" unique_id=1099832800]
+material_override = SubResource("Material_Structural_steel")
+mesh = SubResource("BoxMesh_ef3c0")
+
+[node name="Ceiling" type="MeshInstance3D" parent="." unique_id=200652180]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, -3)
+material_override = SubResource("Material_Ceiling")
+cast_shadow = 0
+mesh = SubResource("BoxMesh_ahdkj")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Ceiling"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Ceiling/ShotCollider"]
+shape = SubResource("Shape_Shot_Ceiling")
+
+[node name="Architecture" type="Node3D" parent="." unique_id=790690430]
+
+[node name="BulkheadTop" type="MeshInstance3D" parent="Architecture" unique_id=1938442865]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.81, -10.72)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_01")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/BulkheadTop"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/BulkheadTop/ShotCollider"]
+shape = SubResource("Shape_Shot_BulkheadTop")
+
+[node name="BulkheadTopCap" type="MeshInstance3D" parent="Architecture" unique_id=27382936]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.03, -10.54)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_02")
+
+[node name="BulkheadBase" type="MeshInstance3D" parent="Architecture" unique_id=1145079431]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.19, -10.59)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_03")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/BulkheadBase"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/BulkheadBase/ShotCollider"]
+shape = SubResource("Shape_Shot_BulkheadBase")
+
+[node name="SkirtingBevel" type="MeshInstance3D" parent="Architecture" unique_id=1735071158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.406, -10.51)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_04")
+
+[node name="TitleBacking" type="MeshInstance3D" parent="Architecture" unique_id=792750657]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.9, -10.19)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_05")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/TitleBacking"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/TitleBacking/ShotCollider"]
+shape = SubResource("Shape_Shot_TitleBacking")
+
+[node name="TitleLightLeft" type="MeshInstance3D" parent="Architecture" unique_id=207563162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.39, 3.9, -10.085)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_06")
+
+[node name="TitleLightRight" type="MeshInstance3D" parent="Architecture" unique_id=2113589493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.39, 3.9, -10.085)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_06")
+
+[node name="RangeDesignation" type="Label3D" parent="Architecture" unique_id=668739331]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.78, -10.085)
+pixel_size = 0.00435
+modulate = Color(1.38, 2, 2.1, 1)
+outline_modulate = Color(0.09, 0.49, 0.54, 0.85)
+text = "KINETIC RANGE"
+font = ExtResource("Font_sign")
+font_size = 49
+outline_size = 7
+
+[node name="WestWallUpper" type="MeshInstance3D" parent="Architecture" unique_id=485827898]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.13, 2.61, -2.86)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_07")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallUpper"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallUpper/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallUpper")
+
+[node name="WestWallBaseCap" type="MeshInstance3D" parent="Architecture" unique_id=1429391422]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.88, 1.14, -2.87)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_08")
+
+[node name="WestWallTopCap" type="MeshInstance3D" parent="Architecture" unique_id=2102785549]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.96, 3.79, -2.86)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_09")
+
+[node name="WestWallPanel01" type="MeshInstance3D" parent="Architecture" unique_id=301756166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, -9.03)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel01/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib01" type="MeshInstance3D" parent="Architecture" unique_id=1219824474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, -10.02)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestWallLamp01" type="MeshInstance3D" parent="Architecture" unique_id=1150054309]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.915, 3.27, -9.03)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="WestWallPanel02" type="MeshInstance3D" parent="Architecture" unique_id=717346721]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, -6.24)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel02/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib02" type="MeshInstance3D" parent="Architecture" unique_id=906014521]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, -7.23)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestWallPanel03" type="MeshInstance3D" parent="Architecture" unique_id=2090534063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, -3.45)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel03/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib03" type="MeshInstance3D" parent="Architecture" unique_id=1096762359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, -4.44)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestWallLamp03" type="MeshInstance3D" parent="Architecture" unique_id=280211732]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.915, 3.27, -3.45)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="WestWallPanel04" type="MeshInstance3D" parent="Architecture" unique_id=1763709112]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, -0.66)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel04/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib04" type="MeshInstance3D" parent="Architecture" unique_id=928337843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, -1.65)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestWallPanel05" type="MeshInstance3D" parent="Architecture" unique_id=1363345009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, 2.13)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel05"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel05/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib05" type="MeshInstance3D" parent="Architecture" unique_id=930770700]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, 1.14)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestWallLamp05" type="MeshInstance3D" parent="Architecture" unique_id=1236627348]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.915, 3.27, 2.13)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="WestWallPanel06" type="MeshInstance3D" parent="Architecture" unique_id=777302076]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.998, 2.45, 4.3)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestWallPanel06"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestWallPanel06/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="WestWallRib06" type="MeshInstance3D" parent="Architecture" unique_id=1707334615]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.91, 2.38, 3.31)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="WestServicePier" type="MeshInstance3D" parent="Architecture" unique_id=351576646]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 1.95, -10.52)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_13")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestServicePier"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestServicePier/ShotCollider"]
+shape = SubResource("Shape_Shot_WestServicePier")
+
+[node name="WestServicePierInner" type="MeshInstance3D" parent="Architecture" unique_id=332237735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 1.97, -10.354)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_14")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestServicePierInner"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestServicePierInner/ShotCollider"]
+shape = SubResource("Shape_Shot_WestServicePierInner")
+
+[node name="WestServiceHandle" type="MeshInstance3D" parent="Architecture" unique_id=762736314]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.79, 1.45, -10.273)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_15")
+
+[node name="WestServiceVent01" type="MeshInstance3D" parent="Architecture" unique_id=1295131318]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 0.66, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="WestServiceVent02" type="MeshInstance3D" parent="Architecture" unique_id=2039126535]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 0.77, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="WestServiceVent03" type="MeshInstance3D" parent="Architecture" unique_id=1477688856]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 0.88, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="WestServiceVent04" type="MeshInstance3D" parent="Architecture" unique_id=1319359832]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.43, 0.99, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="EastWallUpper" type="MeshInstance3D" parent="Architecture" unique_id=653051216]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.13, 2.61, -2.86)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_07")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallUpper"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallUpper/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallUpper")
+
+[node name="EastWallBaseCap" type="MeshInstance3D" parent="Architecture" unique_id=1950683140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.88, 1.14, -2.87)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_08")
+
+[node name="EastWallTopCap" type="MeshInstance3D" parent="Architecture" unique_id=520387869]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.96, 3.79, -2.86)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_09")
+
+[node name="EastWallPanel01" type="MeshInstance3D" parent="Architecture" unique_id=867853578]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, -9.03)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel01/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib01" type="MeshInstance3D" parent="Architecture" unique_id=834562393]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, -10.02)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastWallLamp01" type="MeshInstance3D" parent="Architecture" unique_id=1764840462]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.915, 3.27, -9.03)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="EastWallPanel02" type="MeshInstance3D" parent="Architecture" unique_id=346154136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, -6.24)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel02/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib02" type="MeshInstance3D" parent="Architecture" unique_id=1663616906]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, -7.23)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastWallPanel03" type="MeshInstance3D" parent="Architecture" unique_id=426626136]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, -3.45)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel03/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib03" type="MeshInstance3D" parent="Architecture" unique_id=1318755708]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, -4.44)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastWallLamp03" type="MeshInstance3D" parent="Architecture" unique_id=1650927016]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.915, 3.27, -3.45)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="EastWallPanel04" type="MeshInstance3D" parent="Architecture" unique_id=2002592017]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, -0.66)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel04/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib04" type="MeshInstance3D" parent="Architecture" unique_id=95282469]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, -1.65)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastWallPanel05" type="MeshInstance3D" parent="Architecture" unique_id=1458756154]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, 2.13)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel05"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel05/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib05" type="MeshInstance3D" parent="Architecture" unique_id=1376166035]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, 1.14)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastWallLamp05" type="MeshInstance3D" parent="Architecture" unique_id=274794388]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.915, 3.27, 2.13)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_12")
+
+[node name="EastWallPanel06" type="MeshInstance3D" parent="Architecture" unique_id=933464493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.998, 2.45, 4.3)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_10")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastWallPanel06"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastWallPanel06/ShotCollider"]
+shape = SubResource("Shape_Shot_WestWallPanel")
+
+[node name="EastWallRib06" type="MeshInstance3D" parent="Architecture" unique_id=835069791]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.91, 2.38, 3.31)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_11")
+
+[node name="EastServicePier" type="MeshInstance3D" parent="Architecture" unique_id=1234036395]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 1.95, -10.52)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_13")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastServicePier"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastServicePier/ShotCollider"]
+shape = SubResource("Shape_Shot_WestServicePier")
+
+[node name="EastServicePierInner" type="MeshInstance3D" parent="Architecture" unique_id=461302742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 1.97, -10.354)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_14")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastServicePierInner"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastServicePierInner/ShotCollider"]
+shape = SubResource("Shape_Shot_WestServicePierInner")
+
+[node name="EastServiceHandle" type="MeshInstance3D" parent="Architecture" unique_id=331090212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.79, 1.45, -10.273)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_15")
+
+[node name="EastServiceVent01" type="MeshInstance3D" parent="Architecture" unique_id=668765592]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 0.66, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="EastServiceVent02" type="MeshInstance3D" parent="Architecture" unique_id=21687635]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 0.77, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="EastServiceVent03" type="MeshInstance3D" parent="Architecture" unique_id=896314831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 0.88, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="EastServiceVent04" type="MeshInstance3D" parent="Architecture" unique_id=1419037413]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.43, 0.99, -10.287)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_16")
+
+[node name="RearWallUpper" type="MeshInstance3D" parent="Architecture" unique_id=1615499435]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 5.55)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_17")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearWallUpper"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearWallUpper/ShotCollider"]
+shape = SubResource("Shape_Shot_RearWallUpper")
+
+[node name="RearPanel01" type="MeshInstance3D" parent="Architecture" unique_id=1373189853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.94, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel01/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp01" type="MeshInstance3D" parent="Architecture" unique_id=1184121944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.94, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="RearPanel02" type="MeshInstance3D" parent="Architecture" unique_id=113026207]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.16, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel02/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp02" type="MeshInstance3D" parent="Architecture" unique_id=295735613]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.16, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="RearPanel03" type="MeshInstance3D" parent="Architecture" unique_id=338972154]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.39, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel03/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp03" type="MeshInstance3D" parent="Architecture" unique_id=1290168271]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.39, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="RearPanel04" type="MeshInstance3D" parent="Architecture" unique_id=1525133018]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.39, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel04/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp04" type="MeshInstance3D" parent="Architecture" unique_id=1476949789]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.39, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="RearPanel05" type="MeshInstance3D" parent="Architecture" unique_id=252452745]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.16, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel05"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel05/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp05" type="MeshInstance3D" parent="Architecture" unique_id=1017642006]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.16, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="RearPanel06" type="MeshInstance3D" parent="Architecture" unique_id=2140684721]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.94, 2.52, 5.36)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_18")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/RearPanel06"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/RearPanel06/ShotCollider"]
+shape = SubResource("Shape_Shot_RearPanel")
+
+[node name="RearPanelLamp06" type="MeshInstance3D" parent="Architecture" unique_id=1220907559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.94, 3.49, 5.235)
+material_override = SubResource("Material_Warm_service_light")
+cast_shadow = 0
+mesh = SubResource("Geometry_19")
+
+[node name="CeilingRib01" type="MeshInstance3D" parent="Architecture" unique_id=783997279]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.4, 3.993, -2.9)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_20")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRib01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRib01/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRib")
+
+[node name="CeilingRibTrim01" type="MeshInstance3D" parent="Architecture" unique_id=879556723]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.4, 3.882, -2.9)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_21")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRibTrim01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRibTrim01/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRibTrim")
+
+[node name="CeilingRib02" type="MeshInstance3D" parent="Architecture" unique_id=203977051]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.993, -2.9)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_20")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRib02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRib02/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRib")
+
+[node name="CeilingRibTrim02" type="MeshInstance3D" parent="Architecture" unique_id=241474666]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.882, -2.9)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_21")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRibTrim02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRibTrim02/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRibTrim")
+
+[node name="CeilingRib03" type="MeshInstance3D" parent="Architecture" unique_id=1317915731]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.993, -2.9)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_20")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRib03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRib03/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRib")
+
+[node name="CeilingRibTrim03" type="MeshInstance3D" parent="Architecture" unique_id=17020757]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.882, -2.9)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_21")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRibTrim03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRibTrim03/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRibTrim")
+
+[node name="CeilingRib04" type="MeshInstance3D" parent="Architecture" unique_id=1261278740]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.4, 3.993, -2.9)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_20")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRib04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRib04/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRib")
+
+[node name="CeilingRibTrim04" type="MeshInstance3D" parent="Architecture" unique_id=1584805094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.4, 3.882, -2.9)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_21")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CeilingRibTrim04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CeilingRibTrim04/ShotCollider"]
+shape = SubResource("Shape_Shot_CeilingRibTrim")
+
+[node name="CrossBeam01" type="MeshInstance3D" parent="Architecture" unique_id=102030265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.005, -9.13)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_22")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CrossBeam01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CrossBeam01/ShotCollider"]
+shape = SubResource("Shape_Shot_CrossBeam")
+
+[node name="CrossBeam02" type="MeshInstance3D" parent="Architecture" unique_id=1832749212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.005, -5.5)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_22")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CrossBeam02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CrossBeam02/ShotCollider"]
+shape = SubResource("Shape_Shot_CrossBeam")
+
+[node name="CrossBeam03" type="MeshInstance3D" parent="Architecture" unique_id=1396658848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.005, -1.87)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_22")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CrossBeam03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CrossBeam03/ShotCollider"]
+shape = SubResource("Shape_Shot_CrossBeam")
+
+[node name="CrossBeam04" type="MeshInstance3D" parent="Architecture" unique_id=1438799570]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.005, 1.76)
+material_override = SubResource("Material_Service_panel")
+cast_shadow = 0
+mesh = SubResource("Geometry_22")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/CrossBeam04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/CrossBeam04/ShotCollider"]
+shape = SubResource("Shape_Shot_CrossBeam")
+
+[node name="WestCeilingLightHousing01" type="MeshInstance3D" parent="Architecture" unique_id=2122267606]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.871, -4.95)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="WestCeilingDiffuser01" type="MeshInstance3D" parent="Architecture" unique_id=679631260]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.811, -4.95)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestCeilingDiffuser01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestCeilingDiffuser01/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="EastCeilingLightHousing01" type="MeshInstance3D" parent="Architecture" unique_id=2114613877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.871, -4.95)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="EastCeilingDiffuser01" type="MeshInstance3D" parent="Architecture" unique_id=40392671]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.811, -4.95)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastCeilingDiffuser01"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastCeilingDiffuser01/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="WestCeilingLightHousing02" type="MeshInstance3D" parent="Architecture" unique_id=1532778958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.871, -1.85)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="WestCeilingDiffuser02" type="MeshInstance3D" parent="Architecture" unique_id=673111556]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.811, -1.85)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestCeilingDiffuser02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestCeilingDiffuser02/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="EastCeilingLightHousing02" type="MeshInstance3D" parent="Architecture" unique_id=1619632111]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.871, -1.85)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="EastCeilingDiffuser02" type="MeshInstance3D" parent="Architecture" unique_id=990206220]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.811, -1.85)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastCeilingDiffuser02"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastCeilingDiffuser02/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="WestCeilingLightHousing03" type="MeshInstance3D" parent="Architecture" unique_id=1933596385]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.871, 1.25)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="WestCeilingDiffuser03" type="MeshInstance3D" parent="Architecture" unique_id=25143325]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.811, 1.25)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestCeilingDiffuser03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestCeilingDiffuser03/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="EastCeilingLightHousing03" type="MeshInstance3D" parent="Architecture" unique_id=680561622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.871, 1.25)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="EastCeilingDiffuser03" type="MeshInstance3D" parent="Architecture" unique_id=1085823758]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.811, 1.25)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastCeilingDiffuser03"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastCeilingDiffuser03/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="WestCeilingLightHousing04" type="MeshInstance3D" parent="Architecture" unique_id=2047513998]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.871, 4.35)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="WestCeilingDiffuser04" type="MeshInstance3D" parent="Architecture" unique_id=709418156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 3.811, 4.35)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/WestCeilingDiffuser04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/WestCeilingDiffuser04/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="EastCeilingLightHousing04" type="MeshInstance3D" parent="Architecture" unique_id=2031012942]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.871, 4.35)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_23")
+
+[node name="EastCeilingDiffuser04" type="MeshInstance3D" parent="Architecture" unique_id=1670420553]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 3.811, 4.35)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_24")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Architecture/EastCeilingDiffuser04"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Architecture/EastCeilingDiffuser04/ShotCollider"]
+shape = SubResource("Shape_Shot_WestCeilingDiffuser")
+
+[node name="CyanFogShaft" type="SpotLight3D" parent="Architecture" unique_id=1088066678]
+transform = Transform3D(1, 0, 0, 0, 0.3483369, 0.9373694, 0, -0.9373694, 0.3483369, -5.2, 3.78, -6.05)
+light_color = Color(0.44, 0.87, 1, 1)
+light_energy = 0.42
+light_volumetric_fog_energy = 6.2
+spot_range = 5.2
+spot_attenuation = 1.5
+spot_angle = 26.0
+
+[node name="AmberFogShaft" type="SpotLight3D" parent="Architecture" unique_id=2140411633]
+transform = Transform3D(1, 0, 0, 0, 0.3483369, 0.9373694, 0, -0.9373694, 0.3483369, -0.85, 3.78, -7.05)
+light_color = Color(1, 0.74, 0.47, 1)
+light_energy = 0.42
+light_volumetric_fog_energy = 6.2
+spot_range = 5.2
+spot_attenuation = 1.5
+spot_angle = 26.0
+
+[node name="VioletFogShaft" type="SpotLight3D" parent="Architecture" unique_id=1417029867]
+transform = Transform3D(1, 0, 0, 0, 0.3483369, 0.9373694, 0, -0.9373694, 0.3483369, 3.2, 3.78, -6.05)
+light_color = Color(0.76, 0.63, 1, 1)
+light_energy = 0.42
+light_volumetric_fog_energy = 6.2
+spot_range = 5.2
+spot_attenuation = 1.5
+spot_angle = 26.0
+
+[node name="CeilingHaze" type="FogVolume" parent="Architecture" unique_id=531501791]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.45, -7.1)
+size = Vector3(17.2, 1.7, 5.6)
+material = SubResource("FogMaterial_Overhead")
+
+[node name="Station1Decorations" type="Node3D" parent="." unique_id=959783494]
+
+[node name="Backboard" type="MeshInstance3D" parent="Station1Decorations" unique_id=328310860]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 1.83, -10.53)
+material_override = SubResource("Material_Bay_01_backdrop")
+cast_shadow = 0
+mesh = SubResource("Geometry_25")
+
+[node name="ShotBackboard" type="StaticBody3D" parent="Station1Decorations" unique_id=1107049355]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 1.83, -10.54)
+collision_layer = 16
+collision_mask = 0
+
+[node name="ShotSurface" type="CollisionShape3D" parent="Station1Decorations/ShotBackboard" unique_id=631355265]
+shape = SubResource("Shape_ShotBackboard")
+
+[node name="UpperHousing" type="MeshInstance3D" parent="Station1Decorations" unique_id=1826385553]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.42, -10.46)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_26")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/UpperHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/UpperHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_UpperHousing")
+
+[node name="SignInset" type="MeshInstance3D" parent="Station1Decorations" unique_id=588393080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.42, -10.319)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_27")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/SignInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/SignInset/ShotCollider"]
+shape = SubResource("Shape_Shot_SignInset")
+
+[node name="SignUnderline" type="MeshInstance3D" parent="Station1Decorations" unique_id=105363733]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.204, -10.286)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_28")
+
+[node name="SignDivider" type="MeshInstance3D" parent="Station1Decorations" unique_id=686624050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.279, 3.425, -10.283)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_29")
+
+[node name="StationNumber" type="Label3D" parent="Station1Decorations" unique_id=814526306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.585, 3.414, -10.281)
+pixel_size = 0.0047
+modulate = Color(0.88, 1.48, 1.6, 1)
+outline_modulate = Color(0.22, 0.81, 0.89, 0.82)
+text = "01"
+font = ExtResource("Font_code")
+font_size = 42
+outline_size = 6
+
+[node name="StationSign" type="Label3D" parent="Station1Decorations" unique_id=259048357]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.968, 3.414, -10.281)
+pixel_size = 0.0046
+modulate = Color(0.88, 1.48, 1.6, 1)
+outline_modulate = Color(0.22, 0.81, 0.89, 0.64)
+text = "HUMANOID"
+font = ExtResource("Font_sign")
+font_size = 45
+outline_size = 6
+
+[node name="Kickplate" type="MeshInstance3D" parent="Station1Decorations" unique_id=145489620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0.285, -10.438)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_30")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/Kickplate"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/Kickplate/ShotCollider"]
+shape = SubResource("Shape_Shot_Kickplate")
+
+[node name="KickplateInset" type="MeshInstance3D" parent="Station1Decorations" unique_id=1945849132]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 0.29, -10.29)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_31")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/KickplateInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/KickplateInset/ShotCollider"]
+shape = SubResource("Shape_Shot_KickplateInset")
+
+[node name="LeftUpright" type="MeshInstance3D" parent="Station1Decorations" unique_id=2077761483]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.037, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/LeftUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/LeftUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="LeftUprightTrim" type="MeshInstance3D" parent="Station1Decorations" unique_id=1256436246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.976, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="LeftUprightReveal" type="MeshInstance3D" parent="Station1Decorations" unique_id=1435765453]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.058, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="LeftLightRail" type="MeshInstance3D" parent="Station1Decorations" unique_id=339720943]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.058, 2.24, -10.246)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="LeftShortLightRail" type="MeshInstance3D" parent="Station1Decorations" unique_id=1026209019]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.058, 1.29, -10.246)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="LeftUpperGusset" type="MeshInstance3D" parent="Station1Decorations" unique_id=111411120]
+transform = Transform3D(0.7313537, -0.6819984, 0, 0.6819984, 0.7313537, 0, 0, 0, 1, -5.928, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="LeftLaneMarking" type="MeshInstance3D" parent="Station1Decorations" unique_id=835550960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.86, -0.023, -4.03)
+material_override = SubResource("Material_Bay_01_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="RightUpright" type="MeshInstance3D" parent="Station1Decorations" unique_id=572529445]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.363, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/RightUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/RightUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="RightUprightTrim" type="MeshInstance3D" parent="Station1Decorations" unique_id=391253434]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.424, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="RightUprightReveal" type="MeshInstance3D" parent="Station1Decorations" unique_id=1722655650]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.342, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="RightLightRail" type="MeshInstance3D" parent="Station1Decorations" unique_id=843810287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.342, 2.24, -10.246)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="RightShortLightRail" type="MeshInstance3D" parent="Station1Decorations" unique_id=1059300825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.342, 1.29, -10.246)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="RightUpperGusset" type="MeshInstance3D" parent="Station1Decorations" unique_id=596811354]
+transform = Transform3D(0.7313537, 0.6819984, 0, -0.6819984, 0.7313537, 0, 0, 0, 1, -2.472, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="RightLaneMarking" type="MeshInstance3D" parent="Station1Decorations" unique_id=984525162]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.54, -0.023, -4.03)
+material_override = SubResource("Material_Bay_01_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="Bay01HousingFasteners" type="MultiMeshInstance3D" parent="Station1Decorations" unique_id=906004624]
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay01HousingFasteners")
+
+[node name="Bay01DistanceTicks" type="MultiMeshInstance3D" parent="Station1Decorations" unique_id=500196365]
+material_override = SubResource("Material_Bay_01_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay01DistanceTicks")
+
+[node name="StartLine" type="MeshInstance3D" parent="Station1Decorations" unique_id=1905817149]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, -0.021, 1.38)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_41")
+
+[node name="Bay01TargetCrossbars" type="MultiMeshInstance3D" parent="Station1Decorations" unique_id=1391225072]
+material_override = SubResource("Material_Bay_01_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay01TargetCrossbars")
+
+[node name="Bay01TargetSidebars" type="MultiMeshInstance3D" parent="Station1Decorations" unique_id=868436961]
+material_override = SubResource("Material_Bay_01_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay01TargetSidebars")
+
+[node name="LuminaireHousing" type="MeshInstance3D" parent="Station1Decorations" unique_id=258246817]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.825, -8.46)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_44")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/LuminaireHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/LuminaireHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLuminaireHousing")
+
+[node name="LightPanel" type="MeshInstance3D" parent="Station1Decorations" unique_id=1365052995]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.719, -8.46)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_45")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station1Decorations/LightPanel"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station1Decorations/LightPanel/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLightPanel")
+
+[node name="LightPanelAccent" type="MeshInstance3D" parent="Station1Decorations" unique_id=1084079255]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.2, 3.745, -8.105)
+material_override = SubResource("Material_Bay_01_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_46")
+
+[node name="StationLight" type="OmniLight3D" parent="Station1Decorations" unique_id=454278581]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.87, 3.21, -5.58)
+light_color = Color(0.88, 0.92, 1, 1)
+light_energy = 0.76
+light_volumetric_fog_energy = 0.25
+omni_range = 5.65
+
+[node name="Station2Decorations" type="Node3D" parent="." unique_id=2047507581]
+
+[node name="Backboard" type="MeshInstance3D" parent="Station2Decorations" unique_id=825673817]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.83, -10.53)
+material_override = SubResource("Material_Bay_02_backdrop")
+cast_shadow = 0
+mesh = SubResource("Geometry_25")
+
+[node name="ShotBackboard" type="StaticBody3D" parent="Station2Decorations" unique_id=1684564736]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.83, -10.54)
+collision_layer = 16
+collision_mask = 0
+
+[node name="ShotSurface" type="CollisionShape3D" parent="Station2Decorations/ShotBackboard" unique_id=1822724669]
+shape = SubResource("Shape_ShotBackboard")
+
+[node name="UpperHousing" type="MeshInstance3D" parent="Station2Decorations" unique_id=1262028905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.42, -10.46)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_26")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/UpperHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/UpperHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_UpperHousing")
+
+[node name="SignInset" type="MeshInstance3D" parent="Station2Decorations" unique_id=1177463972]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.42, -10.319)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_27")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/SignInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/SignInset/ShotCollider"]
+shape = SubResource("Shape_Shot_SignInset")
+
+[node name="SignUnderline" type="MeshInstance3D" parent="Station2Decorations" unique_id=569130944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.204, -10.286)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_28")
+
+[node name="SignDivider" type="MeshInstance3D" parent="Station2Decorations" unique_id=504913266]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.079, 3.425, -10.283)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_29")
+
+[node name="StationNumber" type="Label3D" parent="Station2Decorations" unique_id=2138895763]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.385, 3.414, -10.281)
+pixel_size = 0.0047
+modulate = Color(1.62, 1.14, 0.65, 1)
+outline_modulate = Color(0.99, 0.51, 0.19, 0.82)
+text = "02"
+font = ExtResource("Font_code")
+font_size = 42
+outline_size = 6
+
+[node name="StationSign" type="Label3D" parent="Station2Decorations" unique_id=1455638032]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.232, 3.414, -10.281)
+pixel_size = 0.0046
+modulate = Color(1.62, 1.14, 0.65, 1)
+outline_modulate = Color(0.99, 0.51, 0.19, 0.64)
+text = "ARTICULATED LIMBS"
+font = ExtResource("Font_sign")
+font_size = 45
+outline_size = 6
+
+[node name="Kickplate" type="MeshInstance3D" parent="Station2Decorations" unique_id=1518722423]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.285, -10.438)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_30")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/Kickplate"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/Kickplate/ShotCollider"]
+shape = SubResource("Shape_Shot_Kickplate")
+
+[node name="KickplateInset" type="MeshInstance3D" parent="Station2Decorations" unique_id=1518177359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.29, -10.29)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_31")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/KickplateInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/KickplateInset/ShotCollider"]
+shape = SubResource("Shape_Shot_KickplateInset")
+
+[node name="LeftUpright" type="MeshInstance3D" parent="Station2Decorations" unique_id=749240993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.837, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/LeftUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/LeftUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="LeftUprightTrim" type="MeshInstance3D" parent="Station2Decorations" unique_id=2110582113]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.776, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="LeftUprightReveal" type="MeshInstance3D" parent="Station2Decorations" unique_id=1870197379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.858, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="LeftLightRail" type="MeshInstance3D" parent="Station2Decorations" unique_id=213446491]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.858, 2.24, -10.246)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="LeftShortLightRail" type="MeshInstance3D" parent="Station2Decorations" unique_id=634877221]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.858, 1.29, -10.246)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="LeftUpperGusset" type="MeshInstance3D" parent="Station2Decorations" unique_id=1539244962]
+transform = Transform3D(0.7313537, -0.6819984, 0, 0.6819984, 0.7313537, 0, 0, 0, 1, -1.728, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="LeftLaneMarking" type="MeshInstance3D" parent="Station2Decorations" unique_id=1994102497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.66, -0.023, -4.03)
+material_override = SubResource("Material_Bay_02_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="RightUpright" type="MeshInstance3D" parent="Station2Decorations" unique_id=1549204208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.837, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/RightUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/RightUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="RightUprightTrim" type="MeshInstance3D" parent="Station2Decorations" unique_id=154334607]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.776, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="RightUprightReveal" type="MeshInstance3D" parent="Station2Decorations" unique_id=724208956]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.858, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="RightLightRail" type="MeshInstance3D" parent="Station2Decorations" unique_id=1945154147]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.858, 2.24, -10.246)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="RightShortLightRail" type="MeshInstance3D" parent="Station2Decorations" unique_id=2043445276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.858, 1.29, -10.246)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="RightUpperGusset" type="MeshInstance3D" parent="Station2Decorations" unique_id=1499539972]
+transform = Transform3D(0.7313537, 0.6819984, 0, -0.6819984, 0.7313537, 0, 0, 0, 1, 1.728, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="RightLaneMarking" type="MeshInstance3D" parent="Station2Decorations" unique_id=872622173]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.66, -0.023, -4.03)
+material_override = SubResource("Material_Bay_02_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="Bay02HousingFasteners" type="MultiMeshInstance3D" parent="Station2Decorations" unique_id=1707034786]
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay02HousingFasteners")
+
+[node name="Bay02DistanceTicks" type="MultiMeshInstance3D" parent="Station2Decorations" unique_id=1539780343]
+material_override = SubResource("Material_Bay_02_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay02DistanceTicks")
+
+[node name="StartLine" type="MeshInstance3D" parent="Station2Decorations" unique_id=1924790477]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.021, 1.38)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_41")
+
+[node name="Bay02TargetCrossbars" type="MultiMeshInstance3D" parent="Station2Decorations" unique_id=1849519141]
+material_override = SubResource("Material_Bay_02_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay02TargetCrossbars")
+
+[node name="Bay02TargetSidebars" type="MultiMeshInstance3D" parent="Station2Decorations" unique_id=1107835777]
+material_override = SubResource("Material_Bay_02_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay02TargetSidebars")
+
+[node name="LuminaireHousing" type="MeshInstance3D" parent="Station2Decorations" unique_id=1404254160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.825, -8.46)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_44")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/LuminaireHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/LuminaireHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLuminaireHousing")
+
+[node name="LightPanel" type="MeshInstance3D" parent="Station2Decorations" unique_id=1502011144]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.719, -8.46)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_45")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station2Decorations/LightPanel"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station2Decorations/LightPanel/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLightPanel")
+
+[node name="LightPanelAccent" type="MeshInstance3D" parent="Station2Decorations" unique_id=1902076903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.745, -8.105)
+material_override = SubResource("Material_Bay_02_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_46")
+
+[node name="StationLight" type="OmniLight3D" parent="Station2Decorations" unique_id=1550484264]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.67, 3.21, -6.58)
+light_color = Color(0.88, 0.92, 1, 1)
+light_energy = 0.76
+light_volumetric_fog_energy = 0.25
+omni_range = 5.65
+
+[node name="Station3Decorations" type="Node3D" parent="." unique_id=1967028130]
+
+[node name="Backboard" type="MeshInstance3D" parent="Station3Decorations" unique_id=1930400562]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 1.83, -10.53)
+material_override = SubResource("Material_Bay_03_backdrop")
+cast_shadow = 0
+mesh = SubResource("Geometry_25")
+
+[node name="ShotBackboard" type="StaticBody3D" parent="Station3Decorations" unique_id=1813568632]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 1.83, -10.54)
+collision_layer = 16
+collision_mask = 0
+
+[node name="ShotSurface" type="CollisionShape3D" parent="Station3Decorations/ShotBackboard" unique_id=1429395254]
+shape = SubResource("Shape_ShotBackboard")
+
+[node name="UpperHousing" type="MeshInstance3D" parent="Station3Decorations" unique_id=1456618983]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.42, -10.46)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_26")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/UpperHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/UpperHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_UpperHousing")
+
+[node name="SignInset" type="MeshInstance3D" parent="Station3Decorations" unique_id=586883979]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.42, -10.319)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_27")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/SignInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/SignInset/ShotCollider"]
+shape = SubResource("Shape_Shot_SignInset")
+
+[node name="SignUnderline" type="MeshInstance3D" parent="Station3Decorations" unique_id=631013275]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.204, -10.286)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_28")
+
+[node name="SignDivider" type="MeshInstance3D" parent="Station3Decorations" unique_id=1801180646]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.121, 3.425, -10.283)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_29")
+
+[node name="StationNumber" type="Label3D" parent="Station3Decorations" unique_id=860310922]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.815, 3.414, -10.281)
+pixel_size = 0.0047
+modulate = Color(1.14, 0.98, 1.6, 1)
+outline_modulate = Color(0.57, 0.43, 1, 0.82)
+text = "03"
+font = ExtResource("Font_code")
+font_size = 42
+outline_size = 6
+
+[node name="StationSign" type="Label3D" parent="Station3Decorations" unique_id=1289377855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.432, 3.414, -10.281)
+pixel_size = 0.0046
+modulate = Color(1.14, 0.98, 1.6, 1)
+outline_modulate = Color(0.57, 0.43, 1, 0.64)
+text = "MODULAR ATTACHMENTS"
+font = ExtResource("Font_sign")
+font_size = 45
+outline_size = 6
+
+[node name="Kickplate" type="MeshInstance3D" parent="Station3Decorations" unique_id=1309650802]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0.285, -10.438)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_30")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/Kickplate"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/Kickplate/ShotCollider"]
+shape = SubResource("Shape_Shot_Kickplate")
+
+[node name="KickplateInset" type="MeshInstance3D" parent="Station3Decorations" unique_id=1215582888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 0.29, -10.29)
+material_override = SubResource("Material_Structural_steel")
+cast_shadow = 0
+mesh = SubResource("Geometry_31")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/KickplateInset"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/KickplateInset/ShotCollider"]
+shape = SubResource("Shape_Shot_KickplateInset")
+
+[node name="LeftUpright" type="MeshInstance3D" parent="Station3Decorations" unique_id=429037311]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.363, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/LeftUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/LeftUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="LeftUprightTrim" type="MeshInstance3D" parent="Station3Decorations" unique_id=334188660]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.424, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="LeftUprightReveal" type="MeshInstance3D" parent="Station3Decorations" unique_id=311610359]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.342, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="LeftLightRail" type="MeshInstance3D" parent="Station3Decorations" unique_id=1087964374]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.342, 2.24, -10.246)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="LeftShortLightRail" type="MeshInstance3D" parent="Station3Decorations" unique_id=1335468717]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.342, 1.29, -10.246)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="LeftUpperGusset" type="MeshInstance3D" parent="Station3Decorations" unique_id=260134061]
+transform = Transform3D(0.7313537, -0.6819984, 0, 0.6819984, 0.7313537, 0, 0, 0, 1, 2.472, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="LeftLaneMarking" type="MeshInstance3D" parent="Station3Decorations" unique_id=1781496322]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.54, -0.023, -4.03)
+material_override = SubResource("Material_Bay_03_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="RightUpright" type="MeshInstance3D" parent="Station3Decorations" unique_id=394027421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.037, 1.785, -10.45)
+material_override = SubResource("Material_Bay_housing")
+cast_shadow = 0
+mesh = SubResource("Geometry_32")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/RightUpright"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/RightUpright/ShotCollider"]
+shape = SubResource("Shape_Shot_LeftUpright")
+
+[node name="RightUprightTrim" type="MeshInstance3D" parent="Station3Decorations" unique_id=1835202147]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.976, 1.785, -10.281)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_33")
+
+[node name="RightUprightReveal" type="MeshInstance3D" parent="Station3Decorations" unique_id=912178157]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.058, 1.785, -10.273)
+material_override = SubResource("Material_Shadow_reveal")
+cast_shadow = 0
+mesh = SubResource("Geometry_34")
+
+[node name="RightLightRail" type="MeshInstance3D" parent="Station3Decorations" unique_id=170599057]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.058, 2.24, -10.246)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_35")
+
+[node name="RightShortLightRail" type="MeshInstance3D" parent="Station3Decorations" unique_id=1989822212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.058, 1.29, -10.246)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_36")
+
+[node name="RightUpperGusset" type="MeshInstance3D" parent="Station3Decorations" unique_id=328449655]
+transform = Transform3D(0.7313537, 0.6819984, 0, -0.6819984, 0.7313537, 0, 0, 0, 1, 5.928, 3.064, -10.3)
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+mesh = SubResource("Geometry_37")
+
+[node name="RightLaneMarking" type="MeshInstance3D" parent="Station3Decorations" unique_id=1026903403]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.86, -0.023, -4.03)
+material_override = SubResource("Material_Bay_03_deck_guide")
+cast_shadow = 0
+mesh = SubResource("Geometry_38")
+
+[node name="Bay03HousingFasteners" type="MultiMeshInstance3D" parent="Station3Decorations" unique_id=1889234632]
+material_override = SubResource("Material_Machined_edge")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay03HousingFasteners")
+
+[node name="Bay03DistanceTicks" type="MultiMeshInstance3D" parent="Station3Decorations" unique_id=789053914]
+material_override = SubResource("Material_Bay_03_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay03DistanceTicks")
+
+[node name="StartLine" type="MeshInstance3D" parent="Station3Decorations" unique_id=1191608439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, -0.021, 1.38)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_41")
+
+[node name="Bay03TargetCrossbars" type="MultiMeshInstance3D" parent="Station3Decorations" unique_id=299389073]
+material_override = SubResource("Material_Bay_03_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay03TargetCrossbars")
+
+[node name="Bay03TargetSidebars" type="MultiMeshInstance3D" parent="Station3Decorations" unique_id=838899638]
+material_override = SubResource("Material_Bay_03_deck_guide")
+cast_shadow = 0
+multimesh = SubResource("Instances_Bay03TargetSidebars")
+
+[node name="LuminaireHousing" type="MeshInstance3D" parent="Station3Decorations" unique_id=1614876444]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.825, -8.46)
+material_override = SubResource("Material_Recessed_rail")
+cast_shadow = 0
+mesh = SubResource("Geometry_44")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/LuminaireHousing"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/LuminaireHousing/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLuminaireHousing")
+
+[node name="LightPanel" type="MeshInstance3D" parent="Station3Decorations" unique_id=610598947]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.719, -8.46)
+material_override = SubResource("Material_Ceiling_diffuser")
+cast_shadow = 0
+mesh = SubResource("Geometry_45")
+
+[node name="ShotCollider" type="StaticBody3D" parent="Station3Decorations/LightPanel"]
+collision_layer = 16
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape3D" parent="Station3Decorations/LightPanel/ShotCollider"]
+shape = SubResource("Shape_Shot_BayLightPanel")
+
+[node name="LightPanelAccent" type="MeshInstance3D" parent="Station3Decorations" unique_id=169660472]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.2, 3.745, -8.105)
+material_override = SubResource("Material_Bay_03_neon")
+cast_shadow = 0
+mesh = SubResource("Geometry_46")
+
+[node name="StationLight" type="OmniLight3D" parent="Station3Decorations" unique_id=140922554]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.53, 3.21, -5.58)
+light_color = Color(0.88, 0.92, 1, 1)
+light_energy = 0.76
+light_volumetric_fog_energy = 0.25
+omni_range = 5.65

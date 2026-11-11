@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="DismemberedAnimInstance" inherits="Resource" version="4.3">
+  <brief_description>Stores a skeleton pose captured at dismemberment.</brief_description>
+  <description>Captures local bone transforms by name and can apply them to a skeleton with matching bones.</description>
+  <members>
+    <member name="limb" type="StringName" setter="set_limb" getter="get_limb" default="&amp;&quot;&quot;">
+      Name of the bone at the root of the detached limb, stored with the captured pose.
+    </member>
+    <member name="pelvis_bone_name" type="StringName" setter="set_pelvis_bone_name" getter="get_pelvis_bone_name" default="&amp;&quot;pelvis&quot;">
+      Name of the source rig's pelvis bone, copied from the dismemberment component when the limb is created.
+    </member>
+  </members>
+</class>

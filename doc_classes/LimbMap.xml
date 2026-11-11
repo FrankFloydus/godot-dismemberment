@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LimbMap" inherits="Resource" version="4.3">
+  <brief_description>Skeleton hierarchy, reference-pose and skin-weight queries.</brief_description>
+  <description>Initialize with a Skeleton3D and optional MeshInstance3D. Limb queries include the requested root and descendants. Named and indexed Skin binds and four/eight influences are supported. Limb weight queries use the maximum individual bone influence, following the reference plugin. The historical get_all_immediate_bones query returns the complement of a subtree.</description>
+  <members>
+    <member name="exclude" type="PackedStringArray" setter="set_exclude" getter="get_exclude" default="PackedStringArray()">
+      Case-insensitive text fragments used to omit matching bone names from filtered hierarchy queries. A queried limb still includes its root bone.
+    </member>
+    <member name="vertex_num" type="int" setter="" getter="get_vertex_num">
+      Read-only count of vertices across all surfaces of the initialized mesh. Returns zero when no mesh is available.
+    </member>
+  </members>
+</class>

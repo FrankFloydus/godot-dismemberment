@@ -1,0 +1,111 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Texture2D" path="res://demo/assets/impacts/pellet_smoke.png" id="1_smoke"]
+[ext_resource type="Shader" path="res://demo/shotgun_impact_spark.gdshader" id="2_spark"]
+
+[sub_resource type="ShaderMaterial" id="Material_spark"]
+shader = ExtResource("2_spark")
+
+[sub_resource type="QuadMesh" id="Mesh_spark"]
+material = SubResource("Material_spark")
+size = Vector2(0.019, 0.092)
+
+[sub_resource type="Gradient" id="Gradient_spark"]
+offsets = PackedFloat32Array(0, 0.18, 0.51, 1)
+colors = PackedColorArray(1, 0.92, 0.66, 1, 1, 0.71, 0.35, 0.93, 0.87, 0.39, 0.10, 0.55, 0.42, 0.11, 0.02, 0)
+
+[sub_resource type="ShaderMaterial" id="Material_flash"]
+shader = ExtResource("2_spark")
+shader_parameter/strike_flash = true
+
+[sub_resource type="QuadMesh" id="Mesh_flash"]
+material = SubResource("Material_flash")
+size = Vector2(0.066, 0.045)
+
+[sub_resource type="Gradient" id="Gradient_flash"]
+offsets = PackedFloat32Array(0, 0.38, 1)
+colors = PackedColorArray(1, 0.96, 0.79, 1, 1, 0.74, 0.38, 0.6, 0.85, 0.30, 0.08, 0)
+
+[sub_resource type="StandardMaterial3D" id="Material_smoke"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+vertex_color_is_srgb = true
+albedo_texture = ExtResource("1_smoke")
+billboard_mode = 1
+billboard_keep_scale = true
+
+[sub_resource type="QuadMesh" id="Mesh_smoke"]
+material = SubResource("Material_smoke")
+size = Vector2(0.15, 0.13)
+
+[sub_resource type="Gradient" id="Gradient_smoke"]
+offsets = PackedFloat32Array(0, 0.19, 0.56, 1)
+colors = PackedColorArray(0.65, 0.61, 0.55, 0.01, 0.64, 0.61, 0.57, 0.19, 0.54, 0.53, 0.51, 0.11, 0.52, 0.52, 0.52, 0)
+
+[sub_resource type="Curve" id="Curve_smoke_scale"]
+max_value = 2.0
+_data = [Vector2(0, 0.38), 0.0, 2.6, 0, 0, Vector2(1, 1.55), 0.45, 0.0, 0, 0]
+point_count = 2
+
+[node name="ImpactBurst" type="Node3D"]
+
+[node name="StrikeFlash" type="CPUParticles3D" parent="."]
+position = Vector3(0, 0.007, 0)
+cast_shadow = 0
+gi_mode = 0
+emitting = false
+amount = 1
+lifetime = 0.035
+one_shot = true
+local_coords = true
+explosiveness = 1.0
+mesh = SubResource("Mesh_flash")
+gravity = Vector3(0, 0, 0)
+color_ramp = SubResource("Gradient_flash")
+
+[node name="Sparks" type="CPUParticles3D" parent="."]
+cast_shadow = 0
+gi_mode = 0
+emitting = false
+amount = 4
+lifetime = 0.105
+one_shot = true
+local_coords = true
+explosiveness = 1.0
+lifetime_randomness = 0.27
+mesh = SubResource("Mesh_spark")
+particle_flag_align_y = true
+direction = Vector3(0, 1, 0)
+spread = 34.0
+gravity = Vector3(0, -8, 0)
+initial_velocity_min = 3.4
+initial_velocity_max = 5.7
+damping_min = 5.0
+damping_max = 9.0
+scale_amount_min = 0.46
+scale_amount_max = 1.02
+color_ramp = SubResource("Gradient_spark")
+
+[node name="Smoke" type="CPUParticles3D" parent="."]
+cast_shadow = 0
+gi_mode = 0
+emitting = false
+amount = 1
+lifetime = 0.29
+one_shot = true
+local_coords = true
+explosiveness = 1.0
+lifetime_randomness = 0.16
+mesh = SubResource("Mesh_smoke")
+direction = Vector3(0, 1, 0)
+spread = 24.0
+gravity = Vector3(0, 0.64, 0)
+initial_velocity_min = 0.5
+initial_velocity_max = 0.92
+damping_min = 0.45
+damping_max = 0.75
+scale_amount_min = 0.85
+scale_amount_max = 1.15
+scale_amount_curve = SubResource("Curve_smoke_scale")
+color_ramp = SubResource("Gradient_smoke")

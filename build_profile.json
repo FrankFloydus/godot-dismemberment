@@ -1,9 +1,12 @@
 {
-	"_": "This is an example build profile and not used by default. See the SConstruct file for more information.",
+	"_": "Godot Dismemberment runtime classes and their automatically resolved dependencies.",
 	"type": "feature_profile",
 	"enabled_classes": [
-		"Node3D",
-		"ImageTexture",
-		"OS"
+		"Skeleton3D", "BoneAttachment3D", "MeshInstance3D", "Skin", "SkinReference", "ArrayMesh", "SurfaceTool", "MeshDataTool", "RenderingServer", "Window",
+		"RigidBody3D", "PhysicalBone3D", "CollisionShape3D", "BoxShape3D", "CapsuleShape3D", "SphereShape3D", "ConvexPolygonShape3D",
+		"StandardMaterial3D", "ShaderMaterial", "Shader", "ImageTexture", "GradientTexture2D", "FastNoiseLite",
+		"CPUParticles3D", "GPUParticles3D", "ParticleProcessMaterial", "Decal", "PlaneMesh", "QuadMesh", "SphereMesh", "CylinderMesh", "BoxMesh",
+		"PhysicsServer3D", "PhysicsRayQueryParameters3D", "PhysicsDirectSpaceState3D", "World3D", "SceneTree", "SceneTreeTimer", "Timer", "Tween",
+		"MultiplayerAPI", "ENetMultiplayerPeer", "ResourceLoader", "ResourceSaver", "PackedScene", "AnimationPlayer", "AnimationTree", "OS", "Engine", "ProjectSettings"
 	]
 }

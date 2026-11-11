@@ -1,0 +1,15 @@
+{
+  "asset": "Rigged Man Base Mesh",
+  "source": "https://grab3d.com/models/characters/man-base-character/",
+  "download": "https://grab3d.com/dl/man-base-character-rigged/man-base-character-rigged.glb",
+  "license": "CC0-1.0",
+  "license_url": "https://grab3d.com/dl/man-base-character/LICENSE.txt",
+  "download_sha256": "3038f56e1225d0ef9692189ed19ff688f1424e669281148a4cc6995fed568496",
+  "derivations": [
+    "Imported original GLB textures",
+    "Metre-sized bone rests with original bind-slot mapping",
+    "Shared Godot ArrayMesh resource for editable rig scenes",
+    "17 authored physical bodies, 75 kg total"
+  ],
+  "origin_disclosure": "Original asset license identifies AI-assisted generation followed by Blender cleanup."
+}

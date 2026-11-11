@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://demo/shotgun_impact.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://demo/assets/impacts/pellet_mark.png" id="2_mark"]
+
+[ext_resource type="Texture2D" path="res://demo/assets/impacts/pellet_mark_orm.png" id="3_orm"]
+
+[sub_resource type="StandardMaterial3D" id="Material_mark"]
+transparency = 1
+cull_mode = 0
+albedo_texture = ExtResource("2_mark")
+roughness = 0.86
+
+[sub_resource type="PlaneMesh" id="Mesh_mark"]
+material = SubResource("Material_mark")
+size = Vector2(0.115, 0.115)
+
+[node name="ShotgunImpact" type="Node3D" groups=["Shotgun Impact"]]
+script = ExtResource("1_script")
+
+[node name="ProjectedDecal" type="Decal" parent="."]
+visible = false
+size = Vector3(0.115, 0.1, 0.115)
+texture_albedo = ExtResource("2_mark")
+texture_orm = ExtResource("3_orm")
+cull_mask = 1
+normal_fade = 0.55
+
+[node name="SurfaceMark" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.002, 0)
+visible = false
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("Mesh_mark")

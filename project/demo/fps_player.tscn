@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://cqosdf003563o"]
+
+[ext_resource type="PackedScene" uid="uid://74fcwgrgxxkw" path="res://demo/assets/shotgun/bullpup_shotgun.glb" id="1_shotgun"]
+[ext_resource type="PackedScene" path="res://demo/muzzle_flash_particles.tscn" id="2_flash"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_vlt1p"]
+radius = 0.28
+height = 1.75
+
+[node name="FirstPersonPlayer" type="CharacterBody3D" unique_id=1586936633]
+transform = Transform3D(0.99686176, 0, -0.07916247, 0, 1, 0, 0.07916247, 0, 0.99686176, -4.2, -0.055, -3.6)
+collision_layer = 4
+
+[node name="PlayerCollider" type="CollisionShape3D" parent="." unique_id=407542451]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_vlt1p")
+
+[node name="FirstPersonCamera" type="Camera3D" parent="." unique_id=1899053848]
+transform = Transform3D(1, 0, 0, 0, 0.99602544, 0.08906896, 0, -0.08906896, 0.99602544, 0, 1.66, 0)
+current = true
+fov = 50.0
+near = 0.04
+
+[node name="ImpulseProjector" type="Node3D" parent="FirstPersonCamera" unique_id=1213274428]
+transform = Transform3D(0.59412956, 0, 0.08372587, 0, 0.6, 0, -0.08372587, 0, 0.59412956, 0.245, -0.257, -0.657)
+
+[node name="ShotgunModel" parent="FirstPersonCamera/ImpulseProjector" unique_id=757557340 instance=ExtResource("1_shotgun")]
+transform = Transform3D(1.4799997, -1.0244548e-08, 0, -3.7252903e-09, 1.4799999, 2.9802322e-08, 4.4703484e-08, 1.0430813e-07, 1.4799998, -0.20251608, 0.13388729, 0.10509539)
+
+[node name="Shotgun Finish" parent="FirstPersonCamera/ImpulseProjector/ShotgunModel" index="0" unique_id=265901255]
+layers = 2
+cast_shadow = 0
+gi_mode = 2
+
+[node name="BarrelSocket" type="RemoteTransform3D" parent="FirstPersonCamera/ImpulseProjector/ShotgunModel" unique_id=1953944770]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.38783783)
+remote_path = NodePath("../../Muzzle")
+update_scale = false
+
+[node name="Muzzle" type="Marker3D" parent="FirstPersonCamera/ImpulseProjector" unique_id=1965825356]
+transform = Transform3D(0.9999997, -7.916242e-09, -3.7252903e-09, -1.3969839e-09, 1, 2.9802322e-08, 3.7252903e-08, 5.9604645e-08, 1, -0.20251608, 0.13388753, -0.4689045)
+
+[node name="Flash" parent="FirstPersonCamera/ImpulseProjector/Muzzle" unique_id=1548430375 instance=ExtResource("2_flash")]
+transform = Transform3D(4.2183156, -9.313226e-09, 0, 1.8626451e-09, 4.218316, -2.9802322e-08, 0, -2.9802322e-08, 4.2183156, 0, 0, 0)
+
+[node name="FlashLight" type="OmniLight3D" parent="FirstPersonCamera/ImpulseProjector/Muzzle" unique_id=1591385495]
+light_color = Color(1, 0.61, 0.32, 1)
+light_energy = 0.0
+omni_range = 0.85
+
+[editable path="FirstPersonCamera/ImpulseProjector/ShotgunModel"]
+[editable path="FirstPersonCamera/ImpulseProjector/Muzzle/Flash"]

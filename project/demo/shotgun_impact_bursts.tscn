@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://demo/shotgun_impact_bursts.gd" id="1_script"]
+
+[node name="ShotgunImpactBursts" type="Node3D"]
+physics_interpolation_mode = 2
+script = ExtResource("1_script")

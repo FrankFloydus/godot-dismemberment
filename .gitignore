@@ -50,3 +50,9 @@ compile_commands.json
 # Cmake
 cmake-build*
 CMakeUserPresets.json
+
+# Local validation and release staging
+/work/
+/project/addons/godot-dismemberment/bin/
+/project/demo/assets/mannequin/
+*.dll

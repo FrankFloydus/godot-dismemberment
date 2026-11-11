@@ -1,0 +1,272 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://demo/reticle.gd" id="1_bunpq"]
+[ext_resource type="FontFile" path="res://demo/assets/hud_fonts/BarlowSemiCondensed-SemiBold.ttf" id="2_display"]
+[ext_resource type="FontFile" path="res://demo/assets/hud_fonts/IBMPlexMono-Medium.ttf" id="3_data"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.015, 0.036, 0.053, 0.89)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.23, 0.44, 0.5, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_left = 3
+corner_radius_bottom_right = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cursor"]
+content_margin_left = 14.0
+content_margin_top = 7.0
+content_margin_right = 14.0
+content_margin_bottom = 7.0
+bg_color = Color(0.028, 0.043, 0.058, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.63, 0.46, 0.23, 0.84)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_left = 3
+corner_radius_bottom_right = 3
+
+[node name="HUD" type="CanvasLayer" unique_id=267483084]
+
+[node name="Screen" type="Control" parent="." unique_id=1537669695]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HeaderPlate" type="Panel" parent="Screen"]
+offset_left = 28.0
+offset_top = 27.0
+offset_right = 256.0
+offset_bottom = 91.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Accent" type="ColorRect" parent="Screen/HeaderPlate"]
+offset_left = 1.0
+offset_top = 9.0
+offset_right = 3.0
+offset_bottom = 55.0
+mouse_filter = 2
+color = Color(0.31, 0.96, 0.94, 1)
+
+[node name="Header" type="Control" parent="Screen" unique_id=1045237391]
+offset_left = 43.0
+offset_top = 33.0
+offset_right = 240.0
+offset_bottom = 84.0
+mouse_filter = 2
+
+[node name="Title" type="Label" parent="Screen/Header" unique_id=1903205457]
+offset_right = 197.0
+offset_bottom = 33.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.56, 1, 0.97, 1)
+theme_override_colors/font_shadow_color = Color(0.1, 0.8, 0.77, 0.38)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/shadow_outline_size = 2
+theme_override_fonts/font = ExtResource("2_display")
+theme_override_font_sizes/font_size = 28
+text = "KINETIC RANGE"
+
+[node name="Subtitle" type="Label" parent="Screen/Header" unique_id=1527671882]
+offset_top = 35.0
+offset_right = 197.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.62, 0.76, 0.8, 1)
+theme_override_fonts/font = ExtResource("3_data")
+theme_override_font_sizes/font_size = 11
+text = "DISMEMBERMENT DEMO"
+
+[node name="StationPlate" type="Panel" parent="Screen"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -336.0
+offset_top = 27.0
+offset_right = -28.0
+offset_bottom = 76.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Accent" type="ColorRect" parent="Screen/StationPlate"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -3.0
+offset_top = 9.0
+offset_right = -1.0
+offset_bottom = 40.0
+mouse_filter = 2
+color = Color(0.31, 0.96, 0.94, 1)
+
+[node name="StationLabel" type="Label" parent="Screen" unique_id=1105948737]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -324.0
+offset_top = 34.0
+offset_right = -45.0
+offset_bottom = 68.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.8, 0.97, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.07, 0.76, 0.78, 0.34)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/shadow_outline_size = 2
+theme_override_fonts/font = ExtResource("2_display")
+theme_override_font_sizes/font_size = 20
+text = "01 / CC0 HUMANOID"
+horizontal_alignment = 2
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Reticle" type="Control" parent="Screen" unique_id=355406766]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_bunpq")
+
+[node name="AimLabel" type="Label" parent="Screen" unique_id=225726032]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = 25.0
+offset_right = 160.0
+offset_bottom = 47.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.64, 1, 0.97, 1)
+theme_override_colors/font_outline_color = Color(0.015, 0.04, 0.053, 0.95)
+theme_override_constants/outline_size = 4
+theme_override_fonts/font = ExtResource("3_data")
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FooterPlate" type="Panel" parent="Screen"]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 28.0
+offset_top = -111.0
+offset_right = 531.0
+offset_bottom = -27.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Accent" type="ColorRect" parent="Screen/FooterPlate"]
+offset_left = 14.0
+offset_top = 1.0
+offset_right = 47.0
+offset_bottom = 3.0
+mouse_filter = 2
+color = Color(0.31, 0.96, 0.94, 0.8)
+
+[node name="Footer" type="VBoxContainer" parent="Screen" unique_id=951491050]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 43.0
+offset_top = -105.0
+offset_right = 515.0
+offset_bottom = -34.0
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="FeedbackLabel" type="Label" parent="Screen/Footer" unique_id=1786387175]
+custom_minimum_size = Vector2(0, 23)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.45, 0.98, 0.95, 1)
+theme_override_colors/font_shadow_color = Color(0.07, 0.74, 0.72, 0.29)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 0
+theme_override_constants/shadow_outline_size = 2
+theme_override_fonts/font = ExtResource("2_display")
+theme_override_font_sizes/font_size = 18
+text_overrun_behavior = 3
+
+[node name="MoveInstructions" type="Label" parent="Screen/Footer" unique_id=1341567674]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.83, 0.92, 0.94, 1)
+theme_override_fonts/font = ExtResource("3_data")
+theme_override_font_sizes/font_size = 12
+text = "WASD Move · SHIFT Sprint · SPACE Jump · LMB Fire · R Reset"
+
+[node name="StationInstructions" type="Label" parent="Screen/Footer" unique_id=2041831706]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.64, 0.77, 0.81, 1)
+theme_override_fonts/font = ExtResource("3_data")
+theme_override_font_sizes/font_size = 12
+text = "1–3 Station  ·  F Blood  ·  X Hide  ·  C Clear  ·  ESC Cursor"
+
+[node name="StatsPlate" type="Panel" parent="Screen"]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -316.0
+offset_top = -94.0
+offset_right = -28.0
+offset_bottom = -27.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Accent" type="ColorRect" parent="Screen/StatsPlate"]
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -47.0
+offset_top = 1.0
+offset_right = -14.0
+offset_bottom = 3.0
+mouse_filter = 2
+color = Color(0.31, 0.96, 0.94, 0.8)
+
+[node name="StatsLabel" type="Label" parent="Screen" unique_id=420085336]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -301.0
+offset_top = -85.0
+offset_right = -44.0
+offset_bottom = -36.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.76, 0.98, 0.96, 1)
+theme_override_fonts/font = ExtResource("3_data")
+theme_override_font_sizes/font_size = 12
+theme_override_constants/line_spacing = 6
+text = "IMPULSE PROJECTOR\nSHOTS 00   HITS 00   LIMBS 00"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="CursorLabel" type="Label" parent="Screen" unique_id=1075059884]
+visible = false
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -158.0
+offset_top = 31.0
+offset_right = 158.0
+offset_bottom = 66.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.79, 0.45, 1)
+theme_override_fonts/font = ExtResource("2_display")
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBoxFlat_cursor")
+text = "CURSOR FREE  ·  CLICK TO RESUME AIMING"
+horizontal_alignment = 1
+vertical_alignment = 1

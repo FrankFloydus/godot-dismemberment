@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="BloodPool" inherits="Node3D" version="4.3">
+  <brief_description>A blood pool rendered as a projected decal or a plane.</brief_description>
+  <description>Displays the pool on a surface, with a delayed fade-in and an optional fade-out.</description>
+  <members>
+    <member name="decal_material" type="Material" setter="set_decal_material" getter="get_decal_material">
+      Optional material for the pool plane. Assigning a material selects the plane even on renderers that support projected decals.
+    </member>
+    <member name="decal_rotation" type="Vector3" setter="set_decal_rotation" getter="get_decal_rotation" default="Vector3(0, 0, 0)">
+      Local Euler rotation in radians, relative to the receiving surface. The pool also applies a small random rotation around the surface normal.
+    </member>
+    <member name="decal_size" type="Vector3" setter="set_decal_size" getter="get_decal_size" default="Vector3(0.5, 0.015, 0.5)">
+      Pool half-width (X), projection depth (Y), and half-length (Z), in meters. The plane uses only X and Z.
+    </member>
+    <member name="decal_texture" type="Texture2D" setter="set_decal_texture" getter="get_decal_texture">
+      Color and opacity texture for the built-in pool. Leave empty to use the generated splatter.
+    </member>
+    <member name="interp_time" type="float" setter="set_interp_time" getter="get_interp_time" default="0.3">
+      Legacy interpolation setting. Pool size is fixed, and the built-in fade-in takes 0.3 seconds.
+    </member>
+    <member name="max_lifetime" type="float" setter="set_max_lifetime" getter="get_max_lifetime" default="60.0">
+      Fade-out duration in seconds. Fade-out begins one fifth of this duration after the node enters the scene. Use [code]0[/code] to keep the pool until it is removed.
+    </member>
+    <member name="start_delay" type="float" setter="set_start_delay" getter="get_start_delay" default="0.0">
+      Time in seconds before the pool starts fading in.
+    </member>
+    <member name="tile_size" type="float" setter="set_tile_size" getter="get_tile_size" default="7.5">
+      World-space size in meters of one noise tile on the built-in pool plane. Applies when [member use_world_space_tiling] is enabled.
+    </member>
+    <member name="use_world_space_tiling" type="bool" setter="set_use_world_space_tiling" getter="get_use_world_space_tiling" default="true">
+      Samples the built-in pool plane's noise in world space. Turn off to sample using the plane's UVs.
+    </member>
+  </members>
+</class>
