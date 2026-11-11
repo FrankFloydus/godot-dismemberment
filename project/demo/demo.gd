@@ -136,6 +136,7 @@ func _ready() -> void:
 	_setup_pellet_traces()
 	plane_slicing.simplify_fragment_colliders = simplify_fragment_colliders
 	plane_slicing.cap_material = slice_cap_material
+	plane_slicing.prepare()
 	testing = DisplayServer.get_name() == "headless" or "--smoke" in OS.get_cmdline_user_args()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--capture="): testing = true

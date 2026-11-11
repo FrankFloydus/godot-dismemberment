@@ -312,6 +312,7 @@ bones/23/scale = Vector3(1, 1, 1)
 [node name="SkinMesh" type="MeshInstance3D" parent="Skeleton3D" unique_id=225288554 groups=["Dismemberment Source"]]
 mesh = ExtResource("1_f12gg")
 skin = SubResource("Skin_hbxiq")
+metadata/slice_interior_rig = true
 
 [node name="Physics_Hips" type="PhysicalBone3D" parent="Skeleton3D" unique_id=1786074703]
 transform = Transform3D(0.99994797, 0.0102036325, 3.491054e-05, -0.010203633, 0.99992454, 0.0068422426, 3.4907836e-05, -0.0068422426, 0.9999766, 0.00042304257, 1.0466498, -0.0050400924)

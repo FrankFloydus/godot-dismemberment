@@ -379,6 +379,7 @@ bones/23/scale = Vector3(1, 1, 1)
 gi_mode = 2
 mesh = ExtResource("1_8wie1")
 skin = SubResource("Skin_8ugy0")
+metadata/slice_interior_rig = true
 
 [node name="Physics_Hips" type="PhysicalBone3D" parent="Skeleton3D" unique_id=723932158 groups=["Humanoid Authored Physics"]]
 transform = Transform3D(0.99994797, 0.0102036325, 3.490861e-05, -0.010203633, 0.99992454, 0.0068418714, 3.4905974e-05, -0.0068418714, 0.9999766, 0.00042304536, 1.0466497, -0.0050411224)

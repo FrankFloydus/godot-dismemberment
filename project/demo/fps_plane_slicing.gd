@@ -2,12 +2,15 @@ extends RefCounted
 ## Experimental pose-baked slicing. The native component still owns skeletal cuts.
 
 const SliceBones := preload("res://demo/fps_slice_bones.gd")
+const SliceInterior := preload("res://demo/fps_slice_interior.gd")
+const CutStain := preload("res://demo/fps_cut_stain.gd")
 const FRAGMENT_META := &"plane_slice_fragment"
 const SLICE_REMAINDER_META := &"plane_slice_remainder"
 const SEVERED_BONES_META := &"plane_slice_severed_bones"
 const COLLISION_PEERS_META := &"plane_slice_collision_peers"
 const REMAINDER_COLLISION_LAYER := 1 << 1
 const MAX_FRAGMENTS := 12
+const HULL_POINT_BUDGET := 98
 const TILT_STEP := 5.0
 const MAX_TILT := 5.0
 const EPSILON := 0.000001
@@ -15,6 +18,10 @@ const EPSILON := 0.000001
 var tilt_degrees := 0.0
 var cap_material: Material
 var simplify_fragment_colliders := true
+var cut_stain := CutStain.new()
+
+func prepare() -> void:
+	SliceInterior.prepare()
 
 func adjust_tilt(step: float) -> void:
 	tilt_degrees = clampf(tilt_degrees + step, -MAX_TILT, MAX_TILT)
@@ -111,13 +118,20 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 		return _failure("Fragment limit reached. Press R to restore the subject.")
 
 	var fragments: Array[RigidBody3D] = []
+	var positive_visuals: Array[MeshInstance3D] = []
+	var negative_visuals: Array[MeshInstance3D] = []
 	for piece: ArrayMesh in positive + negative:
 		var fragment := _make_fragment(piece, mesh_transform, target.component, index, source)
 		if fragment == null:
 			for prepared in fragments:
 				prepared.free()
 			return _failure("A slash fragment could not make a solid collider.")
+		var visuals := positive_visuals if fragments.size() < positive.size() else negative_visuals
+		visuals.append(fragment.get_node("Mesh") as MeshInstance3D)
 		fragments.append(fragment)
+	var skeleton: Skeleton3D = null if rigid_piece else target.skeleton
+	var missing_bones := PackedStringArray() if rigid_piece else _missing_roots(target)
+	_decorate_cut(source, skeleton, local_plane, positive_visuals, negative_visuals, missing_bones)
 
 	# Do not replace the visible mesh or its collision until every body is ready.
 	var normal := world_plane.normal.normalized()
@@ -191,8 +205,9 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 	var severed: PackedStringArray = source.get_meta(SEVERED_BONES_META, PackedStringArray())
 	if String(bone) in severed or component.disable_dismemberment or not component.check_bone_filter(bone):
 		return {}
+	var local_plane: Plane = region.plane
 	var split: Dictionary = ClassDB.class_call_static(&"MeshPlaneSlice", &"sever_connected_piece",
-		source.mesh, region.plane, region.seed, cap_material, EPSILON)
+		source.mesh, local_plane, region.seed, cap_material, EPSILON)
 	var detached_mesh := split.get("detached_mesh") as ArrayMesh
 	var retained_mesh := split.get("retained_mesh") as ArrayMesh
 	if detached_mesh == null or retained_mesh == null:
@@ -207,7 +222,8 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 		return {}
 	severed = severed.duplicate()
 	severed.append(String(bone))
-	detached.get_node("Mesh").set_meta(SEVERED_BONES_META, severed)
+	var detached_visual := detached.get_node("Mesh") as MeshInstance3D
+	detached_visual.set_meta(SEVERED_BONES_META, severed)
 	var linear := Vector3.ZERO
 	var angular := Vector3.ZERO
 	var center := mesh_transform.origin
@@ -216,7 +232,9 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 		if retained == null:
 			detached.free()
 			return {}
-		retained.get_node("Mesh").set_meta(SEVERED_BONES_META, severed)
+		var retained_visual := retained.get_node("Mesh") as MeshInstance3D
+		retained_visual.set_meta(SEVERED_BONES_META, severed)
+		_decorate_cut(source, null, local_plane, [detached_visual], [retained_visual], PackedStringArray(), true)
 		linear = old_fragment.linear_velocity
 		angular = old_fragment.angular_velocity
 		center = old_fragment.global_position
@@ -236,6 +254,7 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 			detached.free()
 			return {}
 		retained.set_meta(SEVERED_BONES_META, severed)
+		_decorate_cut(source, null, local_plane, [detached_visual], [retained], PackedStringArray(), true)
 		collider.collision_layer = 0
 		source.hide()
 		source.queue_free()
@@ -252,9 +271,21 @@ func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, 
 func _snapshot_source(target: Dictionary) -> ArrayMesh:
 	if target.missing.is_empty() or target.component.geometry_mode != DismembermentComponent.BONE_COLLAPSE:
 		return ClassDB.class_call_static(&"MeshPartition", &"snapshot_pose", target.mesh, target.skeleton) as ArrayMesh
-	var missing_roots := target.component.get_dismembered_bones() as PackedStringArray
-	missing_roots.append_array(PackedStringArray(target.missing.keys()))
-	return ClassDB.class_call_static(&"MeshPartition", &"snapshot_pose", target.mesh, target.skeleton, missing_roots) as ArrayMesh
+	return ClassDB.class_call_static(&"MeshPartition", &"snapshot_pose",
+		target.mesh, target.skeleton, _missing_roots(target)) as ArrayMesh
+
+func _missing_roots(target: Dictionary) -> PackedStringArray:
+	var roots := target.component.get_dismembered_bones() as PackedStringArray
+	roots.append_array(PackedStringArray(target.missing.keys()))
+	return roots
+
+func _decorate_cut(source: MeshInstance3D, skeleton: Skeleton3D, local_plane: Plane,
+		positive: Array, negative: Array, missing_bones := PackedStringArray(), retain_unmatched := false) -> void:
+	SliceInterior.apply(source, skeleton, local_plane, positive, negative, cap_material, missing_bones, retain_unmatched)
+	for visual: MeshInstance3D in positive:
+		cut_stain.apply(visual, source, local_plane)
+	for visual: MeshInstance3D in negative:
+		cut_stain.apply(visual, source, local_plane)
 
 func _slice_standing(arena: Node3D, target: Dictionary, index: int, bone: StringName, point: Vector3) -> Dictionary:
 	var source: MeshInstance3D = target.mesh
@@ -263,7 +294,8 @@ func _slice_standing(arena: Node3D, target: Dictionary, index: int, bone: String
 		return _failure("The current skinned pose could not be captured.")
 	var mesh_transform := source.global_transform
 	var local_normal := _local_normal()
-	var halves := _cut(baked, Plane(local_normal, source.to_local(point)))
+	var local_plane := Plane(local_normal, source.to_local(point))
+	var halves := _cut(baked, local_plane)
 	if not halves.ok:
 		return halves
 
@@ -280,6 +312,10 @@ func _slice_standing(arena: Node3D, target: Dictionary, index: int, bone: String
 	if remainder == null:
 		fragment.free()
 		return _failure("The remaining piece could not make a hit surface.")
+	var detached_visual := fragment.get_node("Mesh") as MeshInstance3D
+	var positive := detached_visual if positive_distal else remainder
+	var negative := remainder if positive_distal else detached_visual
+	_decorate_cut(source, target.skeleton, local_plane, [positive], [negative], _missing_roots(target))
 
 	target.actor.add_child(remainder)
 	remainder.global_transform = mesh_transform
@@ -331,7 +367,8 @@ func _slice_fragment(arena: Node3D, target: Dictionary, index: int, body: RigidB
 	var visual := body.get_node("Mesh") as MeshInstance3D
 	var mesh_transform := visual.global_transform
 	var local_normal := _local_normal()
-	var halves := _cut(visual.mesh, Plane(local_normal, visual.to_local(point)))
+	var local_plane := Plane(local_normal, visual.to_local(point))
+	var halves := _cut(visual.mesh, local_plane)
 	if not halves.ok:
 		return halves
 	var positive := _make_fragment(halves.positive_mesh, mesh_transform, target.component, index, visual)
@@ -342,6 +379,7 @@ func _slice_fragment(arena: Node3D, target: Dictionary, index: int, body: RigidB
 		if negative != null:
 			negative.free()
 		return _failure("That fragment cut did not create two solid colliders.")
+	_decorate_cut(visual, null, local_plane, [positive.get_node("Mesh")], [negative.get_node("Mesh")])
 
 	var world_normal := _world_normal(mesh_transform, local_normal)
 	var linear := body.linear_velocity
@@ -376,9 +414,6 @@ func _cut(mesh: Mesh, local_plane: Plane) -> Dictionary:
 
 func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: GoreComponent,
 		index: int, source: MeshInstance3D) -> RigidBody3D:
-	var shape := mesh.create_convex_shape(true, false)
-	if shape == null or shape.points.size() < 4:
-		return null
 	# Use a unit-scale rigid frame, while retaining the source visual transform.
 	var center := mesh.get_aabb().get_center()
 	var body_basis := mesh_transform.basis.orthonormalized()
@@ -386,10 +421,9 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 		body_basis.x = -body_basis.x
 	var body_transform := Transform3D(body_basis, mesh_transform * center)
 	var local_visual := body_transform.affine_inverse() * mesh_transform
-	var points := local_visual * shape.points
-	if simplify_fragment_colliders and ClassDB.class_has_method(&"MeshPlaneSlice", &"reduce_collision_hull"):
-		points = ClassDB.class_call_static(&"MeshPlaneSlice", &"reduce_collision_hull", points)
-	shape.points = points
+	var shape := _build_fragment_shape(mesh, local_visual)
+	if shape == null:
+		return null
 
 	var body := RigidBody3D.new()
 	body.name = "PlaneSliceFragment"
@@ -418,6 +452,30 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 	collision.shape = shape
 	body.add_child(collision)
 	return body
+
+func _build_fragment_shape(mesh: ArrayMesh, local_visual: Transform3D) -> ConvexPolygonShape3D:
+	var can_simplify := simplify_fragment_colliders and ClassDB.class_has_method(&"MeshPlaneSlice", &"reduce_collision_hull")
+	if can_simplify:
+		var points := PackedVector3Array()
+		for surface in mesh.get_surface_count():
+			points.append_array(mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX])
+		if points.size() > HULL_POINT_BUDGET:
+			# Directional extrema are already present in the mesh vertices.
+			# Sample those before asking the physics server to build the hull.
+			var sampled := ClassDB.class_call_static(&"MeshPlaneSlice", &"reduce_collision_hull",
+				local_visual * points) as PackedVector3Array
+			if sampled.size() >= 4 and sampled.size() <= HULL_POINT_BUDGET:
+				var reduced_shape := ConvexPolygonShape3D.new()
+				reduced_shape.points = sampled
+				return reduced_shape
+	var shape := mesh.create_convex_shape(true, false)
+	if shape == null or shape.points.size() < 4:
+		return null
+	var hull := local_visual * shape.points
+	if can_simplify:
+		hull = ClassDB.class_call_static(&"MeshPlaneSlice", &"reduce_collision_hull", hull)
+	shape.points = hull
+	return shape
 
 func _attach_fragment(arena: Node3D, fragment: RigidBody3D) -> void:
 	var world_transform := fragment.transform

@@ -136,6 +136,8 @@ func _run() -> void:
 
 	var upper: RigidBody3D
 	var torso_sections := 0
+	var torso_with_interiors := 0
+	var torso_with_stains := 0
 	var capped_pieces := 0
 	var live_colliders := true
 	var bounded_colliders := true
@@ -152,10 +154,17 @@ func _run() -> void:
 		var bounds := mesh.get_aabb()
 		if bounds.size.y > 0.65:
 			torso_sections += 1
+			var interiors := visual.get_children().filter(
+				func(node: Node) -> bool: return node is MeshInstance3D and node.is_in_group(&"slice_interior_visual"))
+			torso_with_interiors += int(interiors.size() >= 2)
+			var shell := visual.get_surface_override_material(0)
+			torso_with_stains += int(visual.has_meta(&"plane_slice_stains") and shell != null and shell.next_pass != null)
 			if (source_transform * bounds.get_center()).y > WAIST_HEIGHT:
 				upper = body
 		# Freeze pieces only after checking that gameplay spawned them as live bodies.
 		body.freeze = true
+	_expect(torso_with_interiors == 2 and torso_with_stains == 2,
+		"both waist faces have independent interior geometry and a stain on the surrounding exterior")
 	_expect(live_colliders, "all output sections are live rigid bodies with convex collision")
 	_expect(bounded_colliders, "whole-mesh fragments use bounded convex collision point counts")
 	_expect(capped_pieces >= 4, "both torso sections and the detached arms expose the authored cap material on the swipe plane")
@@ -203,7 +212,9 @@ func _run() -> void:
 	await _physics_frames()
 	_expect(not target.has("plane_slice") and source.is_visible_in_tree()
 		and source.mesh.get_surface_count() == source_mesh.get_surface_count()
-		and source.mesh.get_aabb().is_equal_approx(source_mesh.get_aabb()),
+		and source.mesh.get_aabb().is_equal_approx(source_mesh.get_aabb())
+		and get_nodes_in_group(&"slice_interior_visual").is_empty()
+		and not source.has_meta(&"plane_slice_stains"),
 		"R restores the original source geometry and clears experimental cut state")
 	var restored := true
 	for hitbox in target.hitboxes:

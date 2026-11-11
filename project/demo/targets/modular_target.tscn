@@ -386,6 +386,7 @@ bones/23/scale = Vector3(1, 1, 1)
 gi_mode = 2
 mesh = ExtResource("1_ao7qa")
 skin = SubResource("Skin_uqhkj")
+metadata/slice_interior_rig = true
 
 [node name="HandAccessory" type="BoneAttachment3D" parent="Skeleton3D" unique_id=716423710]
 transform = Transform3D(-0.7928733, -0.2558447, -0.5530779, 0.07948272, -0.9432628, 0.32239398, -0.6041806, 0.21165758, 0.7682233, -0.47375244, 0.9931919, 0.036694974)

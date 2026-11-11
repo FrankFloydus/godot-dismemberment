@@ -48,6 +48,7 @@ static func build(kind: int) -> Dictionary:
 	mesh.skin = skin
 	mesh.skeleton = NodePath("..")
 	mesh.add_to_group("Dismemberment Source",true)
+	mesh.set_meta(&"slice_interior_rig", true)
 	skeleton.add_child(mesh)
 	var specs: Array = []
 	var endpoints := {"Hips":"Spine02","Spine02":"Spine01","Spine01":"Spine","Spine":"neck",

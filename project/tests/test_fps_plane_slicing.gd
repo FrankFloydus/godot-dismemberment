@@ -73,12 +73,19 @@ func _run() -> void:
 		return
 	_press_key(KEY_E)
 	_expect(is_equal_approx(arena.plane_slicing.tilt_degrees, 5.0), "E tilts the cutting plane by five degrees")
+	var override := StandardMaterial3D.new()
+	arena.plane_slicing.cap_material = override
 	_press_key(KEY_V)
 	if not _expect(target.has("plane_slice"), "V cuts the oblique forearm through the actual camera ray"):
 		await _finish()
 		return
 	var slice: Dictionary = target.plane_slice
 	var remainder: MeshInstance3D = slice.remainder
+	var detached_visual := (slice.fragments[0] as RigidBody3D).get_node("Mesh") as MeshInstance3D
+	_expect(_has_forearm_interior(remainder, override) and _has_forearm_interior(detached_visual, override),
+		"both forearm halves carry authored interior geometry with the exact custom cap material")
+	_expect(remainder.has_meta(&"plane_slice_stains") and detached_visual.has_meta(&"plane_slice_stains"),
+		"both sides of the forearm cut have a local exterior stain")
 	_expect(not source.is_visible_in_tree() and remainder.is_visible_in_tree()
 		and remainder.global_transform.is_equal_approx(source.global_transform),
 		"the pose-captured remainder replaces the source in place")
@@ -113,6 +120,11 @@ func _run() -> void:
 		return
 	_expect(slice.fragments.size() == 2 and fragment.is_queued_for_deletion(),
 		"the re-cut replaces the old rigid fragment with two bodies")
+	var previous_seam_retained := false
+	for piece: RigidBody3D in slice.fragments:
+		var visual := piece.get_node("Mesh") as MeshInstance3D
+		previous_seam_retained = previous_seam_retained or visual.get_meta(&"plane_slice_stains", []).size() > 1
+	_expect(previous_seam_retained, "the fragment that touches the earlier seam keeps its stain after a re-cut")
 
 	var old_fragments: Array = slice.fragments.duplicate()
 	_expect(arena._aim_at_bone(0, &"RightArm"), "the camera can aim at the opposite arm on the retained torso")
@@ -149,6 +161,21 @@ func _run() -> void:
 	_expect(restored and get_nodes_in_group("Dismembered Limb").is_empty(),
 		"R restores source collision layers and removes every experimental fragment")
 	await _finish()
+
+func _has_forearm_interior(visual: MeshInstance3D, override: Material) -> bool:
+	var mesh := visual.mesh as ArrayMesh
+	var cap := mesh.get_surface_count() - 1
+	if mesh.surface_get_material(cap) != override or visual.get_surface_override_material(cap) != null:
+		return false
+	var pieces := 0
+	for child in visual.get_children():
+		if child is MeshInstance3D and child.is_in_group(&"slice_interior_visual"):
+			var interior: Mesh = child.mesh
+			for surface in interior.get_surface_count():
+				if interior.surface_get_material(surface) != override:
+					return false
+			pieces += 1
+	return pieces >= 2
 
 func _reslice_fragment(fragment: RigidBody3D) -> bool:
 	# Place the live fragment clear of the subject for a deterministic second ray.

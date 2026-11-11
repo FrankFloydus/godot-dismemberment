@@ -347,6 +347,34 @@ the native DLL sidecar using the installed editor executable as a custom
 template. Matching standard Godot 4.7 export templates were not installed;
 an official release-template executable was not tested.
 
+## Experimental slicing burst on 20 humanoids
+
+On November 11, 2026, a Godot 4.7 Forward+ run with the Windows x86-64
+release DLL used the real demo rig on a Ryzen 9 7900X and RTX 4090 at
+1600 × 900 with VSync disabled. The test supplied registered contacts
+directly to the existing slash and pellet-hit paths so every cut could
+occur before the next physics step. Each of 20 targets was sliced,
+shot to sever an arm, and subjected to a radial blast. The 148 checks
+verified 100 launched rigid fragments, 40 torso halves with interior
+geometry and stain, 20 severed arms with their existing forearm
+interior, and complete fragment cleanup after reset.
+
+| Metric | Before authored interiors and early hull reduction | Integrated |
+| --- | ---: | ---: |
+| Burst CPU time | 4.83 s | 3.64 s |
+| Time to the next process frame | 4.85 s | 3.69 s |
+| Median torso slash | 175.47 ms | 147.53 ms |
+| Median shotgun sever | 60.82 ms | 28.17 ms |
+| Average FPS over the first 0.75 s after the burst | 195.5 | 106.5 |
+| Average FPS in the later 0.75 s window | 174.2 | 126.8 |
+
+Sampling directional support points before convex-hull construction
+shortened the burst CPU time by 24.6% in this comparison. The added
+geometry and exterior stain passes increased measured draw calls from
+851 to 1,751 in the first window after the burst. Cutting every subject
+in one frame still causes a multi-second hitch on this setup.
+The invocation is in [the demo guide](DEMO_README.md).
+
 ## Reproduce and evidence
 
     # Standard headless suites:

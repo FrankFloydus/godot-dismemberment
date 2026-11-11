@@ -50,12 +50,31 @@ along its plane. Try a horizontal swipe through the middle of the torso or
 a diagonal swipe across the upper body. Each closed piece can fall and be cut
 again. **R** restores the subject. The original **V** forearm cut and
 **Q / E** tilt are also available. Select **Slash Gesture** on the range root
-to edit the reach. Leave **Slice Cap Material** empty to use the bundled
-textured interior, or assign a Godot material to override it. **Simplify Fragment Colliders**
-uses bounded convex colliders to keep dropped pieces inexpensive to simulate.
+to edit the reach. The demo humanoid has authored torso and forearm volumes
+in `demo/rigs/humanoid_slice_interior.tscn`. The slicer cuts them with the
+outer mesh and exposes their cross-sections as each fragment moves.
+An irregular blood stain extends from the seam onto the surrounding
+skin and clothing. Edit the interior scene to adjust the individual
+volumes and materials.
+
+Leave **Slice Cap Material** empty to use the bundled materials, or assign
+a Godot material to override the exposed outer and inner cut surfaces.
+**Simplify Fragment Colliders** builds convex shapes from a bounded set of
+support points. The interior geometry is visual and adds no colliders.
 Regular shotgun shots can sever a limb from a sliced body or fragment using
 the saved bone hit regions. A hit on a protected region gives the usual
 impact feedback. A swipe can also cut the remaining body after a shotgun sever.
+
+To reproduce the rendered 20-character stress test, run this from the
+repository root with the Godot 4.7 console executable in `$Godot`.
+
+```powershell
+& $Godot --audio-driver Dummy --disable-vsync --resolution 1600x900 --path project --script res://tests/test_twenty_humanoid_stress.gd -- --verify-interiors
+```
+
+The test applies a torso slash, a shotgun limb sever, and a radial blast to
+each subject in one process frame. It reports burst CPU time and subsequent
+frame times separately, then checks that reset removes the fragments.
 
 Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
 **FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,
