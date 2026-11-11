@@ -30,10 +30,12 @@ short tracer starts at the barrel and ends at its own ray impact or maximum
 range.
 
 Each normalized rig has 17 authored physical bodies, fitted collision shapes,
-constrained joints and 75 kg total mass. The project uses **GodotPhysics3D at
-240 physics ticks per second and 32 solver iterations**. The fitted hand
-colliders use lower friction to reduce sticking during floor contact. The
-third station adds a transferable hand accessory and a remapped hit proxy.
+constrained joints and 75 kg total mass. The project uses **Godot's default
+physics settings**, including 60 ticks per second and 16 solver iterations
+with GodotPhysics3D. The hand colliders use lower friction to reduce sticking
+on the floor. The foot colliders use a local contact solver bias of 0.38 to
+reduce ankle separation on impact. The third station adds a transferable
+hand accessory and a remapped hit proxy.
 The demo's filters protect the pelvis and torso, so a central-body shot can
 wound without severing.
 

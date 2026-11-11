@@ -43,14 +43,6 @@ enabled=PackedStringArray("res://addons/godot-dismemberment/plugin.cfg")
 3d_physics/layer_4="Ragdoll bodies"
 3d_physics/layer_5="Shot surfaces"
 
-[physics]
-
-common/physics_ticks_per_second=240
-common/physics_jitter_fix=0.0
-3d/physics_engine="GodotPhysics3D"
-3d/solver/solver_iterations=32
-common/physics_interpolation=true
-
 [rendering]
 
 global_illumination/gi/use_half_resolution=true

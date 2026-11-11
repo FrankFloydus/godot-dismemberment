@@ -17,6 +17,33 @@ func wait_physics(count: int) -> void:
     await process_frame
     await RenderingServer.frame_post_draw
 
+func capture_joint_anchors(target: Dictionary) -> Array[Dictionary]:
+    var skeleton: Skeleton3D = target.skeleton
+    var bodies: Dictionary = target.physics_bodies
+    var anchors: Array[Dictionary] = []
+    for child: PhysicalBone3D in bodies.values():
+        var parent_bone := skeleton.get_bone_parent(child.get_bone_id())
+        while parent_bone >= 0:
+            var parent := bodies.get(skeleton.get_bone_name(parent_bone)) as PhysicalBone3D
+            if parent != null:
+                var child_anchor := child.joint_offset.origin
+                anchors.append({"parent": parent, "child": child, "child_anchor": child_anchor,
+                    "parent_anchor": parent.to_local(child.to_global(child_anchor))})
+                break
+            parent_bone = skeleton.get_bone_parent(parent_bone)
+    return anchors
+
+func measure_joint_gap(anchors: Array[Dictionary]) -> float:
+    var maximum := 0.0
+    for anchor in anchors:
+        var parent: PhysicalBone3D = anchor.parent
+        var child: PhysicalBone3D = anchor.child
+        if child.is_simulating_physics() and parent.is_simulating_physics():
+            var parent_point := parent.to_global(anchor.parent_anchor)
+            var child_point := child.to_global(anchor.child_anchor)
+            maximum = maxf(maximum, parent_point.distance_to(child_point))
+    return maximum
+
 func edge_maximum(mesh: Mesh) -> float:
     var maximum := 0.0
     for surface in mesh.get_surface_count():
@@ -44,6 +71,7 @@ func run() -> void:
     Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
     await wait_physics(4)
     var target: Dictionary = arena.targets[0]
+    var anchors := capture_joint_anchors(target)
     var rest: PackedVector3Array = target.mesh.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
     for bone: StringName in [&"Head", &"LeftLeg", &"Head", &"LeftArm"]:
         expect(arena._aim_at_bone(0,bone), "camera can aim at " + String(bone))
@@ -55,7 +83,13 @@ func run() -> void:
         arena._unhandled_input(click)
         expect(arena.last_shot.get("bone", &"") == bone and arena.last_shot.get("target", -1) == 0,
             "actual camera ray hits " + String(bone) + " on the intended station")
-        await wait_physics(int(Engine.physics_ticks_per_second * 1.7))
+        var maximum_gap := 0.0
+        for _tick in int(Engine.physics_ticks_per_second * 1.7):
+            await physics_frame
+            maximum_gap = maxf(maximum_gap, measure_joint_gap(anchors))
+        await wait_physics(0)
+        if arena.source_ragdoll_bones.has(String(bone)):
+            expect(target.ragdoll and maximum_gap < 0.08, "shotgun ragdoll joint anchors stay within 8 cm after " + String(bone))
         expect(target.component.get_all_dismembered_limbs().size() == 1, "one independent limb after " + String(bone))
         var source_baked: Mesh = target.mesh.bake_mesh_from_current_skeleton_pose()
         var source_edge := edge_maximum(source_baked)
@@ -77,7 +111,7 @@ func run() -> void:
         var error := 0.0
         for v in mini(restored.size(),rest.size()): error = maxf(error,restored[v].distance_to(rest[v]))
         expect(restored.size() == rest.size() and error < .001, "R restores the rendered mesh before the next shot")
-        print("FPS_RESET_EVIDENCE bone=",bone," source_edge_m=",source_edge," detached_edge_m=",detached_edge," reset_vertex_error_m=",error)
+        print("FPS_RESET_EVIDENCE bone=",bone," max_anchor_gap_m=",maximum_gap," source_edge_m=",source_edge," detached_edge_m=",detached_edge," reset_vertex_error_m=",error)
     # The same camera ray on a protected core hit must wound without severing.
     expect(arena._aim_at_bone(0,&"Hips"),"camera can aim at the core body")
     await wait_physics(3)

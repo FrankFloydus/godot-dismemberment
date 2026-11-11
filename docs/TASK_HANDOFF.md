@@ -33,9 +33,9 @@ rigid-body fallback requires `limb_rigid_fallback_enabled`, default false.
 
 The realistic demo uses 17 authored physical bodies, fitted shapes and constrained
 joints per target, with 75 kg combined mass. Its final hand boxes fit weighted
-geometry in hand rest axes and use 0.35 contact friction. GodotPhysics3D runs at
-240 Hz with 32 solver iterations in this example. The addon preserves another
-project's physics settings. Preserve the demo's protected pelvis/torso filters
+geometry in hand rest axes and use 0.35 contact friction. The example uses
+the engine's default physics settings. The addon uses the host project's
+physics settings. Preserve the demo's protected pelvis/torso filters
 and explicit 0.3 m body / 0.18 m detached wound radii.
 
 Both Windows x86_64 debug and release libraries have been verified on Godot 4.7,

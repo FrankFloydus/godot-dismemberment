@@ -110,7 +110,10 @@ static func attach(skeleton: Skeleton3D, mesh: MeshInstance3D, total_mass_kg: fl
 				"torso": box.size = Vector3(radius * 1.85, maxf(length * .88, .065 * scale_factor), radius * 1.3)
 				"chest": box.size = Vector3(radius * 1.9, maxf(length * 1.05, .09 * scale_factor), radius * 1.35)
 				"hand": box.size = point_bounds.size if point_bounds.has_surface() else Vector3(.075, .11, .045) * scale_factor
-				"foot": box.size = Vector3(.09, maxf(length * 1.3, .18 * scale_factor), .065 * scale_factor)
+				"foot":
+					box.size = Vector3(.09, maxf(length * 1.3, .18 * scale_factor), .065 * scale_factor)
+					# Soften floor contact correction so the ankle can hold under impact.
+					box.custom_solver_bias = .38
 			collision.shape = box
 		else:
 			var capsule := CapsuleShape3D.new()

@@ -3,13 +3,42 @@
 Date: 11 November 2026. Engine: Godot 4.7.stable.official.5b4e0cb0f,
 Windows x86_64, standard precision, RTX 4090. The cut comparison below uses
 OpenGL Compatibility. The current demo and rendered suite use Vulkan Forward+.
-The native bindings target the Godot 4.3 API. The demo uses GodotPhysics3D
-at 240 physics ticks per second and 32 solver iterations. Other engine
-versions and distribution platforms were not executed.
+The native bindings target the Godot 4.3 API. The demo uses the engine
+defaults, which select GodotPhysics3D at 60 physics ticks per second and 16
+solver iterations in Godot 4.7. Earlier benchmark configurations are stated
+with their results. Other engine versions and distribution platforms were
+not executed.
 
 Both Windows native targets were compiled with SCons 4.8.1 and MSVC C++17:
 
     ./tools/build.ps1
+
+## Shotgun reset at default physics settings
+
+At 60 Hz and 16 GodotPhysics3D solver iterations, the original raised
+humanoid exceeded the 8 cm joint-anchor limit during floor impact, including
+on the first fall before a second sever. The repeated-reset probe recorded
+zero post-reset error in the restored body and solver poses. The demo now
+uses a 0.38 contact solver bias on its two foot colliders. This adjusts the
+foot contact correction at the asset level, with the original masses,
+collision dimensions, and joint limits.
+
+Three real-time runs of the 35-check reset test passed at the project
+defaults. The worst measured gap was 7.40 cm. The 20-check joint-integrity
+suite passed with a worst gap of 6.56 cm. Fixed render cadences of 30, 60,
+and 120 FPS also passed the reset probe with physics held at 60 Hz.
+The rendered FPS reset test measures the joint anchors during the actual
+shotgun and R-key sequence in the authored scene. All 38 checks passed
+with a worst joint-anchor gap of 5.68 cm in that scene.
+
+An isolated project with only the addon installed used the default 60 Hz
+rate and 16 solver iterations. All 109 integration checks passed.
+
+Jolt at 60 Hz also passed the reset and joint-integrity suites. It logged
+that the foot contact bias is ignored, alongside the existing warnings for
+unsupported authored joint parameters. At the former 240 Hz / 32 iteration
+settings with a fixed 240 FPS test cadence, reset passed. The full-cut
+wrist exceeded the 8 cm limit with either the old or the tuned foot bias.
 
 ## Experimental plane slicing
 
@@ -53,7 +82,7 @@ synchronously in the demo.
 
 ### Frame time after multiple swipes
 
-Three waist cuts produced 12 rigid fragments at the range's usual 240 Hz
+Three waist cuts produced 12 rigid fragments at the range's former 240 Hz
 physics rate. The Windows release test used a fixed 1440 × 900 Forward+
 viewport with VSync disabled. Each condition sampled 100 frames after
 1.35 seconds of falling and floor contact. The order was full hulls,

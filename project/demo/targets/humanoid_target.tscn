@@ -124,6 +124,7 @@ radius = 0.063176274
 height = 0.3567285
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_g2snu"]
+custom_solver_bias = 0.38
 size = Vector3(0.09, 0.17574157, 0.063462235)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_aelnb"]
@@ -135,6 +136,7 @@ radius = 0.063462235
 height = 0.35904378
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_pw4kv"]
+custom_solver_bias = 0.38
 size = Vector3(0.09, 0.18298323, 0.063462235)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_0l6c1"]
