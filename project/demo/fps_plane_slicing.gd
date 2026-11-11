@@ -1,8 +1,10 @@
 extends RefCounted
 ## Experimental pose-baked slicing. The native component still owns skeletal cuts.
 
+const SliceBones := preload("res://demo/fps_slice_bones.gd")
 const FRAGMENT_META := &"plane_slice_fragment"
 const SLICE_REMAINDER_META := &"plane_slice_remainder"
+const SEVERED_BONES_META := &"plane_slice_severed_bones"
 const REMAINDER_COLLISION_LAYER := 1 << 1
 const MAX_FRAGMENTS := 12
 const TILT_STEP := 5.0
@@ -170,6 +172,100 @@ func slash_hit(arena: Node3D, hit: Dictionary, targets: Array[Dictionary], world
 	return {"ok": true, "mode": &"fragment" if rigid_piece else &"whole", "target": index, "point": point,
 		"loop_count": pieces.loop_count, "remainder": remainder, "fragment": fragments[0], "fragments": fragments}
 
+func sever_shot(arena: Node3D, hit: Dictionary, target: Dictionary, index: int, impulse: Vector3) -> Dictionary:
+	if not target.has("plane_slice") or not ClassDB.class_has_method(&"MeshPlaneSlice", &"sever_connected_piece"):
+		return {}
+	var state: Dictionary = target.plane_slice
+	var fragments: Array = state.fragments
+	if fragments.size() >= MAX_FRAGMENTS:
+		return {}
+	var collider := hit.collider as PhysicsBody3D
+	if collider == null or collider.is_queued_for_deletion():
+		return {}
+	var old_fragment := collider as RigidBody3D
+	var source: MeshInstance3D
+	if old_fragment != null:
+		if not fragments.has(old_fragment):
+			return {}
+		source = old_fragment.get_node("Mesh") as MeshInstance3D
+	else:
+		source = state.remainder
+		if not is_instance_valid(source) or collider.get_parent() != source:
+			return {}
+
+	var region := SliceBones.resolve(state.bones, source.to_local(hit.position),
+		source.global_basis.inverse() * hit.direction)
+	if region.is_empty():
+		return {}
+	var bone: StringName = region.bone
+	var component: GoreComponent = target.component
+	var severed: PackedStringArray = source.get_meta(SEVERED_BONES_META, PackedStringArray())
+	if String(bone) in severed or component.disable_dismemberment or not component.check_bone_filter(bone):
+		return {}
+	var split: Dictionary = ClassDB.class_call_static(&"MeshPlaneSlice", &"sever_connected_piece",
+		source.mesh, region.plane, region.seed, cap_material, EPSILON)
+	var detached_mesh := split.get("detached_mesh") as ArrayMesh
+	var retained_mesh := split.get("retained_mesh") as ArrayMesh
+	if detached_mesh == null or retained_mesh == null:
+		return {}
+	var limb_bounds: AABB = region.bounds
+	if not limb_bounds.encloses(detached_mesh.get_aabb()):
+		return {}
+
+	var mesh_transform := source.global_transform
+	var detached := _make_fragment(detached_mesh, mesh_transform, component, index, source)
+	if detached == null:
+		return {}
+	severed = severed.duplicate()
+	severed.append(String(bone))
+	detached.get_node("Mesh").set_meta(SEVERED_BONES_META, severed)
+	var linear := Vector3.ZERO
+	var angular := Vector3.ZERO
+	var center := mesh_transform.origin
+	if old_fragment != null:
+		var retained := _make_fragment(retained_mesh, mesh_transform, component, index, source)
+		if retained == null:
+			detached.free()
+			return {}
+		retained.get_node("Mesh").set_meta(SEVERED_BONES_META, severed)
+		linear = old_fragment.linear_velocity
+		angular = old_fragment.angular_velocity
+		center = old_fragment.global_position
+		var siblings := old_fragment.get_collision_exceptions()
+		_remove_fragment(old_fragment)
+		fragments.erase(old_fragment)
+		_attach_fragment(arena, retained)
+		_attach_fragment(arena, detached)
+		retained.add_collision_exception_with(detached)
+		detached.add_collision_exception_with(retained)
+		for sibling in siblings:
+			if is_instance_valid(sibling) and not sibling.is_queued_for_deletion():
+				retained.add_collision_exception_with(sibling)
+				detached.add_collision_exception_with(sibling)
+				sibling.add_collision_exception_with(retained)
+				sibling.add_collision_exception_with(detached)
+		retained.linear_velocity = linear + angular.cross(retained.global_position - center)
+		retained.angular_velocity = angular
+		fragments.append(retained)
+	else:
+		var retained := _make_remainder(retained_mesh, index, source)
+		if retained == null:
+			detached.free()
+			return {}
+		retained.set_meta(SEVERED_BONES_META, severed)
+		collider.collision_layer = 0
+		source.hide()
+		source.queue_free()
+		target.actor.add_child(retained)
+		retained.global_transform = mesh_transform
+		retained.reset_physics_interpolation()
+		state.remainder = retained
+		_attach_fragment(arena, detached)
+	detached.linear_velocity = linear + angular.cross(detached.global_position - center) + impulse
+	detached.angular_velocity = angular
+	fragments.append(detached)
+	return {"bone": bone, "limb": detached}
+
 func _snapshot_source(target: Dictionary) -> ArrayMesh:
 	if target.missing.is_empty() or target.component.geometry_mode != DismembermentComponent.BONE_COLLAPSE:
 		return ClassDB.class_call_static(&"MeshPartition", &"snapshot_pose", target.mesh, target.skeleton) as ArrayMesh
@@ -224,6 +320,8 @@ func _make_remainder(mesh: ArrayMesh, index: int, source: MeshInstance3D) -> Mes
 	remainder.layers = source.layers
 	remainder.cast_shadow = source.cast_shadow
 	remainder.gi_mode = source.gi_mode
+	if source.has_meta(SEVERED_BONES_META):
+		remainder.set_meta(SEVERED_BONES_META, source.get_meta(SEVERED_BONES_META))
 
 	# This pose-baked surface is only for hit queries, like the standing hitboxes.
 	var body := StaticBody3D.new()
@@ -326,6 +424,8 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 	visual.layers = source.layers
 	visual.cast_shadow = source.cast_shadow
 	visual.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC
+	if source.has_meta(SEVERED_BONES_META):
+		visual.set_meta(SEVERED_BONES_META, source.get_meta(SEVERED_BONES_META))
 	body.add_child(visual)
 	var collision := CollisionShape3D.new()
 	collision.name = "CollisionShape3D"
@@ -341,6 +441,7 @@ func _attach_fragment(arena: Node3D, fragment: RigidBody3D) -> void:
 
 func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: Array) -> void:
 	var skeleton: Skeleton3D = target.skeleton
+	var bones := SliceBones.capture(target)
 	if target.ragdoll:
 		skeleton.physical_bones_stop_simulation()
 	var physics_layers := {}
@@ -352,6 +453,7 @@ func _suspend_source(target: Dictionary, remainder: MeshInstance3D, fragments: A
 		"fragments": fragments,
 		"skeleton_visible": skeleton.visible,
 		"physics_layers": physics_layers,
+		"bones": bones,
 	}
 	skeleton.hide()
 

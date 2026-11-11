@@ -495,15 +495,23 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		if handled_detached.has(part) or handled_stations.has(index):
 			return {}
 		handled_detached[part] = true
-		if collider is PhysicalBone3D or (collider is RigidBody3D and sliced_fragment):
-			collider.apply_central_impulse(direction * collider.mass * detached_limb_hit_impulse)
+		var sever := {}
 		if index >= 0 and index < targets.size():
 			handled_stations[index] = true
+			if (sliced_fragment or sliced_remainder) and not blood_only and not hide_only:
+				var impulse := direction * dismemberment_impulse + Vector3.UP * dismemberment_upward_boost
+				sever = plane_slicing.sever_shot(self, hit, targets[index], index, impulse)
 			var gore: GoreComponent = targets[index].component
 			if is_instance_valid(gore) and gore.enable_blood_particles:
 				gore.spawn_blood_particles(endpoint, direction)
+		if sever.is_empty() and (collider is PhysicalBone3D or (collider is RigidBody3D and sliced_fragment)):
+			collider.apply_central_impulse(direction * collider.mass * detached_limb_hit_impulse)
 		if not hide_only:
-			range_audio.play_body_impact(endpoint)
+			range_audio.play_body_impact(endpoint, not sever.is_empty())
+		if not sever.is_empty():
+			total_cuts += 1
+			return {"hit": true, "detached": limb != null, "sliced": true, "severed": true,
+				"target": index, "position": endpoint, "bone": sever.bone, "limb": sever.limb}
 		return {"hit": true, "detached": limb != null, "sliced": sliced_fragment or sliced_remainder,
 			"target": index, "position": endpoint}
 
@@ -540,8 +548,11 @@ func _show_shot_result(result: Dictionary, blood_only: bool, hide_only: bool) ->
 			active_station = index
 			station_label.text = "%02d / %s" % [active_station + 1, targets[index].title]
 		successful_hits += 1
-		reticle.call("register_hit", false)
-		if result.get("sliced", false):
+		var severed: bool = result.get("severed", false)
+		reticle.call("register_hit", severed)
+		if severed:
+			_feedback("SEVERED · " + String(result.bone))
+		elif result.get("sliced", false):
 			_feedback("SLICE FRAGMENT HIT" if result.detached else "SLICED SUBJECT HIT")
 		else:
 			_feedback("DETACHED LIMB HIT")

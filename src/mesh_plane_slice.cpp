@@ -635,6 +635,8 @@ public:
 
     int loop_count() const { return int(loops.size()); }
     size_t welded_vertex_count() const { return vertices.size(); }
+    bool strictly_positive(const Vector3 &point) const { return signed_distance(point) > epsilon; }
+    const std::vector<std::vector<int>> &cut_contours() const { return loops; }
 
     const char *run(std::vector<SurfaceInput> &input) {
         size_t vertex_count = 0, element_count = 0;
@@ -867,37 +869,47 @@ Dictionary failure(const char *message) {
     return result;
 }
 
+struct ConnectedSide {
+    size_t welded_count;
+    SliceComponents components;
+    std::vector<std::vector<size_t>> vertex_ids;
+
+    ConnectedSide(const std::vector<SurfaceInput> &input, const SliceGeometry &geometry, bool positive) :
+            welded_count(geometry.welded_vertex_count()), components(welded_count + geometry.seam_positions.size()),
+            vertex_ids(input.size()) {
+        for (size_t surface = 0; surface < input.size(); ++surface) {
+            const SurfaceOutput &split = geometry.surfaces[surface];
+            const SurfaceTriangles &triangles = (positive ? split.positive : split.negative).triangles;
+            auto &vertices = vertex_ids[surface];
+            vertices.reserve(triangles.vertices.size());
+            // The shell and cap share welded and on-plane vertex identities.
+            for (const Corner &corner : triangles.vertices) {
+                vertices.push_back(corner.seam >= 0 ? welded_count + corner.seam : input[surface].topology[corner.a]);
+            }
+            for (size_t i = 0; i < triangles.indices.size(); i += 3) {
+                components.join_triangle(vertices[triangles.indices[i]], vertices[triangles.indices[i + 1]], vertices[triangles.indices[i + 2]]);
+            }
+        }
+        for (size_t i = 0; i < geometry.cap_indices.size(); i += 3) {
+            components.join_triangle(welded_count + geometry.cap_indices[i], welded_count + geometry.cap_indices[i + 1],
+                    welded_count + geometry.cap_indices[i + 2]);
+        }
+    }
+
+    size_t seam_root(int seam) { return components.root(welded_count + seam); }
+};
+
 bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInput> &input, const SliceGeometry &geometry,
         bool positive, const Ref<Material> &cap_material) {
     constexpr size_t unassigned = std::numeric_limits<size_t>::max();
-    const size_t welded_count = geometry.welded_vertex_count();
-    const size_t vertex_count = welded_count + geometry.seam_positions.size();
-    SliceComponents components(vertex_count);
-    std::vector<std::vector<size_t>> piece_membership(input.size());
-    for (size_t surface = 0; surface < input.size(); ++surface) {
-        const SurfaceOutput &split = geometry.surfaces[surface];
-        const SurfaceTriangles &triangles = (positive ? split.positive : split.negative).triangles;
-        auto &vertices = piece_membership[surface];
-        vertices.reserve(triangles.vertices.size());
-        // Exterior attributes keep render seams, but connectivity must use the
-        // same welded and on-plane vertex identities as the shell and cap.
-        for (const Corner &corner : triangles.vertices) {
-            vertices.push_back(corner.seam >= 0 ? welded_count + corner.seam : input[surface].topology[corner.a]);
-        }
-        for (size_t i = 0; i < triangles.indices.size(); i += 3) {
-            components.join_triangle(vertices[triangles.indices[i]], vertices[triangles.indices[i + 1]], vertices[triangles.indices[i + 2]]);
-        }
-    }
-    for (size_t i = 0; i < geometry.cap_indices.size(); i += 3) {
-        components.join_triangle(welded_count + geometry.cap_indices[i], welded_count + geometry.cap_indices[i + 1],
-                welded_count + geometry.cap_indices[i + 2]);
-    }
+    ConnectedSide side(input, geometry, positive);
+    auto &piece_membership = side.vertex_ids;
 
-    std::vector<size_t> piece_for_root(vertex_count, unassigned);
+    std::vector<size_t> piece_for_root(side.welded_count + geometry.seam_positions.size(), unassigned);
     std::vector<Ref<ArrayMesh>> pieces;
     for (auto &vertices : piece_membership) {
         for (size_t &vertex : vertices) {
-            size_t &piece = piece_for_root[components.root(vertex)];
+            size_t &piece = piece_for_root[side.components.root(vertex)];
             if (piece == unassigned) {
                 piece = pieces.size();
                 pieces.emplace_back().instantiate();
@@ -951,7 +963,7 @@ bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInpu
     std::vector<std::vector<int>> cap_by_piece(pieces.size());
     for (size_t i = 0; i < geometry.cap_indices.size(); i += 3) {
         const int a = geometry.cap_indices[i], b = geometry.cap_indices[i + 1], c = geometry.cap_indices[i + 2];
-        const size_t piece = piece_for_root[components.root(welded_count + a)];
+        const size_t piece = piece_for_root[side.seam_root(a)];
         if (piece == unassigned) return false;
         cap_by_piece[piece].insert(cap_by_piece[piece].end(), { a, b, c });
     }
@@ -973,6 +985,127 @@ double valid_plane_length(const Plane &plane, double epsilon) {
 
 constexpr char INVALID_PLANE[] = "A finite plane with a nonzero normal and a nonnegative epsilon is required.";
 constexpr char INVALID_SURFACE[] = "The mesh contains unsupported or malformed rigid triangle surface arrays.";
+
+real_t segment_distance_squared(const Vector3 &point, const Vector3 &a, const Vector3 &b) {
+    const Vector3 edge = b - a;
+    const real_t length_squared = edge.length_squared();
+    if (length_squared == 0) return point.distance_squared_to(a);
+    const real_t fraction = std::clamp((point - a).dot(edge) / length_squared, real_t(0), real_t(1));
+    return point.distance_squared_to(a + edge * fraction);
+}
+
+real_t triangle_distance_squared(const Vector3 &point, const Vector3 &a, const Vector3 &b, const Vector3 &c) {
+    const Vector3 normal = (b - a).cross(c - a);
+    const real_t normal_squared = normal.length_squared();
+    if (normal_squared > 0 && normal.dot((b - a).cross(point - a)) >= 0 &&
+            normal.dot((c - b).cross(point - b)) >= 0 && normal.dot((a - c).cross(point - c)) >= 0) {
+        const real_t offset = normal.dot(point - a);
+        return offset * offset / normal_squared;
+    }
+    return std::min({ segment_distance_squared(point, a, b), segment_distance_squared(point, b, c),
+            segment_distance_squared(point, c, a) });
+}
+
+size_t closest_piece(const std::vector<SurfaceInput> &input, const SliceGeometry &geometry, ConnectedSide &side,
+        const Vector3 &seed, double max_distance) {
+    constexpr size_t missing = std::numeric_limits<size_t>::max();
+    size_t selected = missing;
+    double nearest = max_distance * max_distance;
+    bool ambiguous = false;
+    for (size_t surface = 0; surface < input.size(); ++surface) {
+        const Vector3 *original = input[surface].positions.ptr();
+        const SurfaceTriangles &triangles = geometry.surfaces[surface].positive.triangles;
+        for (size_t i = 0; i < triangles.indices.size(); i += 3) {
+            const int32_t a = triangles.indices[i];
+            const Vector3 pa = geometry.position(triangles.vertices[a], original);
+            const Vector3 pb = geometry.position(triangles.vertices[triangles.indices[i + 1]], original);
+            const Vector3 pc = geometry.position(triangles.vertices[triangles.indices[i + 2]], original);
+            const double distance = triangle_distance_squared(seed, pa, pb, pc);
+            if (!std::isfinite(distance) || distance > nearest) continue;
+            const size_t piece = side.components.root(side.vertex_ids[surface][a]);
+            if (distance < nearest || selected == missing) {
+                selected = piece;
+                nearest = distance;
+                ambiguous = false;
+            } else if (piece != selected) {
+                ambiguous = true;
+            }
+        }
+    }
+    return ambiguous ? missing : selected;
+}
+
+bool publish_severed_surfaces(const Ref<ArrayMesh> &detached, const Ref<ArrayMesh> &retained,
+        const std::vector<SurfaceInput> &input, SliceGeometry &geometry, ConnectedSide &side, size_t selected) {
+    std::vector<int32_t> local_indices;
+    std::vector<bool> in_detached;
+    for (size_t surface = 0; surface < input.size(); ++surface) {
+        const SurfaceTriangles &positive = geometry.surfaces[surface].positive.triangles;
+        SurfaceTriangles kept = std::move(geometry.surfaces[surface].negative.triangles);
+        SurfaceTriangles removed;
+        local_indices.resize(positive.vertices.size());
+        in_detached.resize(positive.vertices.size());
+        for (size_t i = 0; i < positive.vertices.size(); ++i) {
+            in_detached[i] = side.components.root(side.vertex_ids[surface][i]) == selected;
+            SurfaceTriangles &destination = in_detached[i] ? removed : kept;
+            if (destination.vertices.size() >= size_t(std::numeric_limits<int32_t>::max())) return false;
+            local_indices[i] = int32_t(destination.vertices.size());
+            destination.vertices.push_back(positive.vertices[i]);
+        }
+        for (size_t i = 0; i < positive.indices.size(); i += 3) {
+            const int32_t a = positive.indices[i], b = positive.indices[i + 1], c = positive.indices[i + 2];
+            auto &indices = in_detached[a] ? removed.indices : kept.indices;
+            indices.insert(indices.end(), { local_indices[a], local_indices[b], local_indices[c] });
+        }
+        // The other positive patches rejoin the negative shell using the
+        // same exact seam positions. They neither detach nor receive a cap.
+        if (!publish_side(detached, input[surface], removed, geometry) ||
+                !publish_side(retained, input[surface], kept, geometry)) return false;
+    }
+    return true;
+}
+
+Dictionary run_sever(std::vector<SurfaceInput> &input, const Plane &plane, double normal_length, double epsilon,
+        const Vector3 &seed, double max_distance, const Ref<Material> &cap_material) {
+    SliceGeometry geometry(plane, normal_length, epsilon);
+    if (!geometry.strictly_positive(seed)) return failure("The limb hit is not beyond the cut plane.");
+    if (const char *error = geometry.run(input)) return failure(error);
+    ConnectedSide side(input, geometry, true);
+    const size_t selected = closest_piece(input, geometry, side, seed, max_distance);
+    if (selected == std::numeric_limits<size_t>::max()) return failure("The cut could not identify one nearby limb.");
+
+    std::vector<int> cap_indices;
+    for (size_t i = 0; i < geometry.cap_indices.size(); i += 3) {
+        const int a = geometry.cap_indices[i];
+        if (side.seam_root(a) == selected) {
+            cap_indices.insert(cap_indices.end(), { a, geometry.cap_indices[i + 1], geometry.cap_indices[i + 2] });
+        }
+    }
+    if (cap_indices.empty()) return failure("The cut does not separate the hit piece.");
+
+    Ref<ArrayMesh> detached, retained;
+    detached.instantiate();
+    retained.instantiate();
+    if (!publish_severed_surfaces(detached, retained, input, geometry, side, selected)) {
+        return failure("Could not create the severed mesh surfaces.");
+    }
+    std::vector<int> cap_mapping(geometry.seam_positions.size(), -1);
+    if (!publish_cap(detached, geometry, true, cap_material, cap_indices, cap_mapping)) {
+        return failure("Could not create the severed limb cap.");
+    }
+    std::fill(cap_mapping.begin(), cap_mapping.end(), -1);
+    if (!publish_cap(retained, geometry, false, cap_material, cap_indices, cap_mapping)) {
+        return failure("Could not create the retained mesh cap.");
+    }
+
+    const auto &contours = geometry.cut_contours();
+    Dictionary result;
+    result["detached_mesh"] = detached;
+    result["retained_mesh"] = retained;
+    result["loop_count"] = int(std::count_if(contours.begin(), contours.end(),
+            [&](const auto &loop) { return side.seam_root(loop.front()) == selected; }));
+    return result;
+}
 
 Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, double normal_length,
         const Ref<Material> &cap_material, double epsilon, bool separate) {
@@ -1013,7 +1146,8 @@ Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, doubl
     return result;
 }
 
-Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon, bool separate) {
+Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon, bool separate,
+        const Vector3 *seed = nullptr, double max_distance = 0.0) {
     if (mesh.is_null() || mesh->get_surface_count() == 0) return failure("A nonempty ArrayMesh is required.");
     if (mesh->get_blend_shape_count() != 0) return failure("The rigid slicer does not accept blend shapes.");
     const double normal_length = valid_plane_length(plane, epsilon);
@@ -1026,6 +1160,7 @@ Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref
             return failure(INVALID_SURFACE);
         }
     }
+    if (seed) return run_sever(input, plane, normal_length, epsilon, *seed, max_distance, cap_material);
     return run_slice(input, plane, normal_length, cap_material, epsilon, separate);
 }
 
@@ -1073,6 +1208,9 @@ void MeshPlaneSlice::_bind_methods() {
             &MeshPlaneSlice::slice_mesh, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_mesh_pieces", "mesh", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_mesh_pieces, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
+    ClassDB::bind_static_method("MeshPlaneSlice",
+            D_METHOD("sever_connected_piece", "mesh", "plane", "limb_seed", "cap_material", "epsilon", "max_seed_distance"),
+            &MeshPlaneSlice::sever_connected_piece, DEFVAL(Ref<Material>()), DEFVAL(0.000001), DEFVAL(0.15));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_pose", "mesh", "skeleton", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_pose, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("reduce_collision_hull", "points"),
@@ -1085,6 +1223,14 @@ Dictionary MeshPlaneSlice::slice_mesh(const Ref<ArrayMesh> &mesh, const Plane &p
 
 Dictionary MeshPlaneSlice::slice_mesh_pieces(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon) {
     return slice_rigid(mesh, plane, cap_material, epsilon, true);
+}
+
+Dictionary MeshPlaneSlice::sever_connected_piece(const Ref<ArrayMesh> &mesh, const Plane &plane, const Vector3 &limb_seed,
+        const Ref<Material> &cap_material, double epsilon, double max_seed_distance) {
+    if (!limb_seed.is_finite() || !std::isfinite(max_seed_distance) || max_seed_distance < 0) {
+        return failure("A finite limb seed and a nonnegative seed distance are required.");
+    }
+    return slice_rigid(mesh, plane, cap_material, epsilon, false, &limb_seed, max_seed_distance);
 }
 
 Dictionary MeshPlaneSlice::slice_pose(MeshInstance3D *mesh, Skeleton3D *skeleton, const Plane &plane,

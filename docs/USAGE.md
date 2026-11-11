@@ -116,6 +116,13 @@ Build a local `Plane` from the resulting normal and point. The demo calls
 the same geometry API from its camera swipe, builds convex rigid bodies from
 the pieces, and publishes the swap after all colliders succeed.
 
+`MeshPlaneSlice.sever_connected_piece(array_mesh, local_plane, limb_seed,
+cap_material)` uses a mesh-local point on the limb side of the plane to
+detach one connected region. It returns `detached_mesh` and `retained_mesh`.
+Only the chosen region receives a new cut boundary. The demo keeps its
+authored bone hit regions in the same local frame so the shotgun can find
+the joint on a piece that has already moved or rotated.
+
 `MeshPlaneSlice.reduce_collision_hull(points)` samples body-local convex
 hull points in 98 directions, keeping the exact extents along the body
 axes. The demo enables it by default for fragment simulation. The display

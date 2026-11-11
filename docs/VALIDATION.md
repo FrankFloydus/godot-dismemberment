@@ -90,6 +90,14 @@ retained quick-cut torso. They also sever an arm and swipe the remaining
 body while checking that the detached arm is preserved. A separate Forward+
 check swipes a moving source ragdoll after a head cut.
 
+The localized sever test cuts individual branches from an already sliced
+mesh and checks the closed edges, cap winding, preserved branch, and signed
+volumes. In the FPS demo, shots sever an arm and then a leg from the same
+quick-cut body. A regular eight-pellet shell also severs the selected arm
+from a moved and rotated waist-slice fragment. The test checks the detached
+bounds and verifies that the other fragments remain. Blood-only shots
+keep the limb attached.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

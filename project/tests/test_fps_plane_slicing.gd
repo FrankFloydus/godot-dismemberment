@@ -114,6 +114,27 @@ func _run() -> void:
 	_expect(slice.fragments.size() == 2 and fragment.is_queued_for_deletion(),
 		"the re-cut replaces the old rigid fragment with two bodies")
 
+	var old_fragments: Array = slice.fragments.duplicate()
+	_expect(arena._aim_at_bone(0, &"RightArm"), "the camera can aim at the opposite arm on the retained torso")
+	await _physics_frames()
+	arena.shot_cooldown = 0.0
+	var sever: Dictionary = arena._shoot()
+	if _expect(sever.get("severed", false) and sever.get("bone") == &"RightArm",
+			"the shotgun actually severs the right arm after the left forearm slice: %s" % str(sever)):
+		_expect(slice.remainder != remainder and remainder.is_queued_for_deletion()
+			and slice.fragments.size() == 3 and sever.limb in slice.fragments
+			and old_fragments.all(func(body: RigidBody3D) -> bool: return body in slice.fragments),
+			"the new limb separates while the torso and prior pieces remain")
+		_expect(arena._aim_at_bone(0, &"RightUpLeg"), "the camera can aim at the thigh on the surviving body")
+		await _physics_frames()
+		arena.shot_cooldown = 0.0
+		var leg_sever: Dictionary = arena._shoot()
+		if _expect(leg_sever.get("severed", false) and leg_sever.get("bone") == &"RightUpLeg",
+				"a second shot severs the targeted leg on the same sliced body: %s" % str(leg_sever)):
+			var leg_mesh: MeshInstance3D = leg_sever.limb.get_node("Mesh")
+			_expect(leg_mesh.mesh.get_aabb().end.x < 0.08 and sever.limb in slice.fragments
+				and slice.fragments.size() == 4, "the shot leaves the opposite leg and all previous pieces")
+
 	_press_key(KEY_R)
 	await _physics_frames()
 	_expect(not target.has("plane_slice") and source.is_visible_in_tree()

@@ -17,9 +17,11 @@ Reliable authority RPCs, explicit owning-peer requests, ordered snapshots, late 
 The `experiment/plane-slicing` branch adds a local FPS trial. A swipe defines
 the cut plane, which intersects the full posed mesh and caps closed sections,
 including supported cavities. Each connected section becomes a rigid
-fragment with convex collision and can be shot or slashed again. The forearm
-quick cut uses a shootable static remainder. A whole swipe can also cut the
-remaining body after an articulated shotgun sever. Both tools operate locally.
+fragment with convex collision and can be shot or slashed again. On a baked
+piece the shotgun uses captured bone hit regions to sever the selected limb
+and leaves unrelated plane intersections joined. The forearm quick cut uses
+a shootable static remainder. A whole swipe can also cut the remaining body
+after an articulated shotgun sever. Both tools operate locally.
 
 ## Runtime dismemberment
 

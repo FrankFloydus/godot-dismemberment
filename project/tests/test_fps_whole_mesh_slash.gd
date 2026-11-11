@@ -229,8 +229,64 @@ func _run() -> void:
 			"a horizontal leg swipe caps all six contours, including cavities: %s" % nested.get("error", "")):
 		_press_reset()
 		await _physics_frames()
+	await _check_shot_severs_slice_limb(target)
 	await _check_slash_after_shot(target, source_mesh.get_aabb().end.x)
 	await _finish()
+
+func _check_shot_severs_slice_limb(target: Dictionary) -> void:
+	arena._jump_station(0)
+	await _aim_level(target.actor.global_position, WAIST_HEIGHT)
+	var source: MeshInstance3D = target.mesh
+	var arm: Vector3
+	for hitbox in target.hitboxes:
+		if hitbox.bone == &"LeftArm":
+			arm = source.to_local(hitbox.area.global_position)
+			break
+	var slash := _swipe(SWIPE)
+	if not _expect(slash.get("ok", false), "the second waist slice prepares a rigid torso for the shotgun"):
+		return
+	var upper: RigidBody3D
+	var siblings: Array = []
+	for body: RigidBody3D in slash.fragments:
+		body.freeze = true
+		var visual: MeshInstance3D = body.get_node("Mesh")
+		var bounds := visual.mesh.get_aabb()
+		if bounds.size.y > 0.65 and source.to_global(bounds.get_center()).y > WAIST_HEIGHT:
+			upper = body
+		else:
+			siblings.append(body)
+	if not _expect(upper != null, "the waist cut retains the upper body and its arms"):
+		_press_reset()
+		return
+	upper.global_position += Vector3(1.0, 0.25, 1.25)
+	upper.rotate_y(deg_to_rad(24.0))
+	upper.reset_physics_interpolation()
+	var upper_mesh := upper.get_node("Mesh") as MeshInstance3D
+	var viewpoint := upper_mesh.to_global(arm + Vector3(1.7, 0.3, 2.4))
+	arena.player.global_position = Vector3(viewpoint.x, -0.055, viewpoint.z)
+	arena.player.velocity = Vector3.ZERO
+	arena.camera.position.y += viewpoint.y - arena.camera.global_position.y
+	arena._look_at(upper_mesh.to_global(arm))
+	await _physics_frames()
+	if _expect(arena._raycast_camera().get("collider") == upper, "the shotgun ray reaches the moved, rotated upper fragment"):
+		arena.pellet_count = 8
+		arena.fire_shake_distance = 0.0
+		arena.shot_cooldown = 0.0
+		var blood_only: Dictionary = arena._shoot(true)
+		_expect(blood_only.get("sliced", false) and not blood_only.get("severed", false),
+			"the blood-only tool leaves the limb attached")
+		arena.shot_cooldown = 0.0
+		var sever: Dictionary = arena._shoot()
+		if _expect(sever.get("severed", false) and sever.get("bone") == &"LeftArm" and sever.pellets_fired == 8,
+				"the shotgun severs the arm from the moved fragment: %s" % str(sever)):
+			var bodies: Array = target.plane_slice.fragments
+			var limb_mesh: MeshInstance3D = sever.limb.get_node("Mesh")
+			_expect(upper.is_queued_for_deletion() and bodies.size() == slash.fragments.size() + 1
+				and sever.limb in bodies and limb_mesh.mesh.get_aabb().position.x > 0.13
+				and siblings.all(func(body: RigidBody3D) -> bool: return body in bodies),
+				"the hit releases only the local arm and preserves every unrelated fragment")
+	_press_reset()
+	await _physics_frames()
 
 func _check_slash_after_shot(target: Dictionary, original_left_extent: float) -> void:
 	arena.pellet_count = 1

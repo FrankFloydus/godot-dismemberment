@@ -40,6 +40,7 @@ func _run() -> void:
 	_check_cut(concave, Plane(Vector3.RIGHT, -0.2), cap, [exterior],
 		1, 5.0, 6.0, 4.0, "concave cap loop")
 	_check_nested_contours(exterior, cap, recut_cap)
+	_check_localized_sever(exterior, cap, recut_cap)
 
 	_check_rejected(_make_boxes([Vector3.ZERO], exterior, true), Plane(Vector3.RIGHT, 0.35),
 		"open source")
@@ -158,7 +159,7 @@ func _check_cut(source: ArrayMesh, plane: Plane, cap: Material, exterior: Array[
 	return result
 
 func _check_half(mesh: ArrayMesh, plane: Plane, side: int, cap: Material, exterior: Array[Material],
-		expected_area: float, label: String) -> float:
+		expected_area: float, label: String, expect_within_half := true) -> float:
 	var vertices := {}
 	var edge_count := {}
 	var edge_balance := {}
@@ -220,7 +221,8 @@ func _check_half(mesh: ArrayMesh, plane: Plane, side: int, cap: Material, exteri
 	for material in exterior:
 		exterior_preserved = exterior_preserved and exterior_found.has(material)
 	_check(exterior_preserved, label + " preserves exterior materials")
-	_check(vertices_in_half, label + " contains no vertices on the wrong side")
+	var expected_extent := " stays within its half-space" if expect_within_half else " retains geometry across the plane"
+	_check(vertices_in_half == expect_within_half, label + expected_extent)
 	_check(cap_on_plane and cap_faces_out and cap_normals_out,
 		label + " cap vertices, winding and normals agree with the plane")
 	_check(triangles_valid, label + " contains nondegenerate triangles")
@@ -229,6 +231,65 @@ func _check_half(mesh: ArrayMesh, plane: Plane, side: int, cap: Material, exteri
 		[label, bad_edge_count])
 	_near(cap_area, expected_area, label + " cap area")
 	return volume
+
+func _check_localized_sever(exterior: Material, initial_cap: Material, sever_cap: Material) -> void:
+	# A closed fork has two tines joined by a crossbar below y = 0.
+	var profile := PackedVector2Array([
+		Vector2(-1, -2), Vector2(3, -2), Vector2(3, -1), Vector2(0, -1),
+		Vector2(0, 1), Vector2(3, 1), Vector2(3, 2), Vector2(-1, 2),
+	])
+	var fork := _make_prism(profile, exterior)
+	var initial := _check_cut(fork, Plane(Vector3.RIGHT, -0.25), initial_cap, [exterior],
+		1, 10.0, 12.5, 7.5, "initial slice of the connected fork")
+	var sliced := initial.get("positive_mesh") as ArrayMesh
+	if sliced == null:
+		return
+
+	# The joint plane crosses both tines. The hit lies on the outside of the left tine.
+	var plane := Plane(Vector3.UP, 1.25)
+	var result := MeshPlaneSlice.sever_connected_piece(sliced, plane, Vector3(1.0, 2.7, -1.5), sever_cap)
+	var detached := result.get("detached_mesh") as ArrayMesh
+	var retained := result.get("retained_mesh") as ArrayMesh
+	_check(not result.has("error") and detached != null and retained != null and result.get("loop_count") == 1,
+		"severing an already sliced mesh caps only the hit tine: %s" % result.get("error", ""))
+	if detached == null or retained == null:
+		return
+
+	var detached_volume := _check_half(detached, plane, 1, sever_cap, [exterior, initial_cap],
+		1.25, "detached tine")
+	var retained_volume := _check_half(retained, plane, -1, sever_cap, [exterior, initial_cap],
+		1.25, "retained fork", false)
+	_near(detached_volume, 2.1875, "the detached piece contains only the distal hit tine")
+	_near(retained_volume, 10.3125, "the retained piece keeps the crossbar and other tine")
+	_near(detached_volume + retained_volume, _volume(sliced), "localized sever conserves volume")
+	_check(detached.get_aabb().end.z <= -1.0 + TOLERANCE and
+		retained.get_aabb().end.y >= 3.0 - TOLERANCE and retained.get_aabb().end.z >= 2.0 - TOLERANCE,
+		"the untouched tine remains full length on the retained piece")
+	var only_unhit_tine_crosses := true
+	for surface in retained.get_surface_count():
+		for point: Vector3 in retained.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX]:
+			if plane.distance_to(point) > TOLERANCE and point.z < 1.0 - TOLERANCE:
+				only_unhit_tine_crosses = false
+	_check(only_unhit_tine_crosses, "no distal geometry from the severed tine remains on the retained piece")
+
+	var second_plane := Plane(Vector3.UP, 1.75)
+	var repeat := MeshPlaneSlice.sever_connected_piece(retained, second_plane,
+		Vector3(1.0, 2.7, -1.5), sever_cap)
+	_check(repeat.has("error") and not repeat.has("detached_mesh") and not repeat.has("retained_mesh"),
+		"a shot near the missing tine does not sever the remaining tine")
+	var second_cap := StandardMaterial3D.new()
+	var followup := MeshPlaneSlice.sever_connected_piece(retained, second_plane,
+		Vector3(1.0, 2.7, 1.5), second_cap)
+	var second_detached := followup.get("detached_mesh") as ArrayMesh
+	var second_retained := followup.get("retained_mesh") as ArrayMesh
+	_check(not followup.has("error") and second_detached != null and second_retained != null and
+		followup.get("loop_count") == 1, "a follow-up shot can sever the untouched tine")
+	if second_detached == null or second_retained == null:
+		return
+	_near(_check_half(second_detached, second_plane, 1, second_cap, [exterior, initial_cap], 1.25,
+		"second detached tine"), 1.5625, "second detached volume")
+	_near(_check_half(second_retained, second_plane, -1, second_cap, [exterior, initial_cap, sever_cap], 1.25,
+		"crossbar after two local cuts"), 8.75, "second retained volume")
 
 func _check_rejected(mesh: ArrayMesh, plane: Plane, label: String) -> void:
 	var result := MeshPlaneSlice.slice_mesh(mesh, plane)
@@ -354,6 +415,9 @@ func _make_concave_prism(material: Material) -> ArrayMesh:
 		Vector2(-1.5, -1.5), Vector2(1.5, -1.5), Vector2(1.5, -0.5),
 		Vector2(-0.5, -0.5), Vector2(-0.5, 1.5), Vector2(-1.5, 1.5),
 	])
+	return _make_prism(polygon, material)
+
+func _make_prism(polygon: PackedVector2Array, material: Material) -> ArrayMesh:
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
 	builder.set_material(material)
