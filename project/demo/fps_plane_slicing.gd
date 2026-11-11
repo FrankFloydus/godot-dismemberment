@@ -16,12 +16,6 @@ var tilt_degrees := 0.0
 var cap_material: Material
 var simplify_fragment_colliders := true
 
-func _init() -> void:
-	var default_cap := StandardMaterial3D.new()
-	default_cap.albedo_color = Color(0.28, 0.045, 0.038)
-	default_cap.roughness = 0.84
-	cap_material = default_cap
-
 func adjust_tilt(step: float) -> void:
 	tilt_degrees = clampf(tilt_degrees + step, -MAX_TILT, MAX_TILT)
 

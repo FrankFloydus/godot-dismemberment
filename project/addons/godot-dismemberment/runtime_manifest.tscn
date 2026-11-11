@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 ; A scene manifest gives the export dependency scanner real resource references.
 ; GDScript preloads of GDExtension descriptors are not dependency-scanned in all
@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/blood_02.png" id="6_texture"]
 [ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/blood_03.png" id="7_texture"]
 [ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/cloud_noise.png" id="8_noise"]
+[ext_resource type="StandardMaterial3D" path="res://addons/godot-dismemberment/materials/slice_cap.tres" id="9_slice_cap"]
 
 [node name="GodotDismembermentRuntime" type="Node"]
 metadata/native_extension = ExtResource("1_extension")
@@ -21,3 +22,4 @@ metadata/blood_01 = ExtResource("5_texture")
 metadata/blood_02 = ExtResource("6_texture")
 metadata/blood_03 = ExtResource("7_texture")
 metadata/cloud_noise = ExtResource("8_noise")
+metadata/slice_cap_material = ExtResource("9_slice_cap")

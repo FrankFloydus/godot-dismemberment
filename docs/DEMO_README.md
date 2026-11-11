@@ -50,7 +50,8 @@ along its plane. Try a horizontal swipe through the middle of the torso or
 a diagonal swipe across the upper body. Each closed piece can fall and be cut
 again. **R** restores the subject. The original **V** forearm cut and
 **Q / E** tilt are also available. Select **Slash Gesture** on the range root
-to edit the reach and cut-surface material. **Simplify Fragment Colliders**
+to edit the reach. Leave **Slice Cap Material** empty to use the bundled
+textured interior, or assign a Godot material to override it. **Simplify Fragment Colliders**
 uses bounded convex colliders to keep dropped pieces inexpensive to simulate.
 Regular shotgun shots can sever a limb from a sliced body or fragment using
 the saved bone hit regions. A hit on a protected region gives the usual

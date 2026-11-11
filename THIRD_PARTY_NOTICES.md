@@ -20,6 +20,28 @@ Godot shaders, editor shell, demonstration environment and physical-body
 configuration are authored for this port. The realistic humanoid mesh has the
 separate provenance below.
 
+The slice-cap albedo in `project/addons/godot-dismemberment/textures/slice_cap/`
+was generated with OpenAI ImageGen and made tileable for this addon. The
+matching normal and roughness maps were derived from the tile. The metallic
+map is solid black.
+
+<details>
+<summary>Slice-cap albedo generation prompt</summary>
+
+> Generate one square tileable base-color game texture for an organic interior
+> material, abstract material only. Orthographic, edge-to-edge albedo scan
+> under perfectly uniform diffuse illumination. Compact fine-grained dark
+> burgundy and reddish brown with irregular muted red clusters, soft mottled
+> transitions and sparse thin pale connective wisps at several scales. Tiny
+> broken fiber bundles viewed obliquely, with varied orientations. Natural
+> slightly uneven coloring. Keep most detail small so it remains believable on
+> a narrow surface. No body parts or objects, text, lighting, shadows, glare,
+> wet highlights, parallel bands, brush strokes, grid, borders or large
+> centered feature. Match opposite edges for repeating UVs. Crisp material
+> detail, subtly varied value, restrained saturation.
+
+</details>
+
 The FPS demo's clothed humanoid is the rigged **Man Base Mesh** from
 [Grab3D](https://grab3d.com/models/characters/man-base-character/). Grab3D publishes
 the asset, its textures and supplied walk/run animations under

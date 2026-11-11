@@ -2,6 +2,7 @@ extends SceneTree
 ## A horizontal camera swipe cuts the posed torso and both arms at the same height.
 
 const DEMO := "res://demo/demo.tscn"
+const DEFAULT_CAP_PATH := "res://addons/godot-dismemberment/materials/slice_cap.tres"
 const WAIST_HEIGHT := 1.04
 const UPPER_BODY_HEIGHT := 1.35
 const SWIPE := Vector2(136.0, 0.0)
@@ -64,7 +65,13 @@ func _press_reset() -> void:
 
 func _cap_is_on_plane(mesh: ArrayMesh, source_transform: Transform3D, plane: Plane) -> bool:
 	var cap := mesh.get_surface_count() - 1
-	if cap < 0 or mesh.surface_get_name(cap) != "Slice Cap" or mesh.surface_get_material(cap) != arena.slice_cap_material:
+	if cap < 0 or mesh.surface_get_name(cap) != "Slice Cap":
+		return false
+	var material := mesh.surface_get_material(cap)
+	if arena.slice_cap_material != null:
+		if material != arena.slice_cap_material:
+			return false
+	elif material == null or material.resource_path != DEFAULT_CAP_PATH:
 		return false
 	var positions: PackedVector3Array = mesh.surface_get_arrays(cap)[Mesh.ARRAY_VERTEX]
 	for position in positions:

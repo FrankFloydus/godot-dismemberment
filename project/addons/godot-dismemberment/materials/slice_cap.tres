@@ -1,0 +1,19 @@
+[gd_resource type="StandardMaterial3D" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/albedo.png" id="1_albedo"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/normal.png" id="2_normal"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/roughness.png" id="3_roughness"]
+[ext_resource type="Texture2D" path="res://addons/godot-dismemberment/textures/slice_cap/metallic.png" id="4_metallic"]
+
+[resource]
+resource_name = "Slice Interior"
+albedo_texture = ExtResource("1_albedo")
+metallic = 1.0
+metallic_specular = 0.38
+metallic_texture = ExtResource("4_metallic")
+roughness_texture = ExtResource("3_roughness")
+normal_enabled = true
+normal_scale = 0.62
+normal_texture = ExtResource("2_normal")
+uv1_scale = Vector3(2.3, 2.3, 1)
+texture_filter = 5

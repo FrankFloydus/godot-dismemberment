@@ -2,6 +2,8 @@
 
 #include "mesh_partition.h"
 
+#include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
@@ -21,6 +23,23 @@
 
 namespace godot {
 namespace {
+
+Ref<Material> resolve_cap_material(const Ref<Material> &override_material) {
+    if (override_material.is_valid()) return override_material;
+
+    ResourceLoader *loader = ResourceLoader::get_singleton();
+    const char *path = "res://addons/godot-dismemberment/materials/slice_cap.tres";
+    if (loader->exists(path)) {
+        const Ref<Material> bundled = loader->load(path);
+        if (bundled.is_valid()) return bundled;
+    }
+
+    Ref<StandardMaterial3D> fallback;
+    fallback.instantiate();
+    fallback->set_albedo(Color(0.28, 0.045, 0.038));
+    fallback->set_roughness(0.84);
+    return fallback;
+}
 
 using EdgeKey = uint64_t;
 
@@ -1083,6 +1102,7 @@ Dictionary run_sever(std::vector<SurfaceInput> &input, const Plane &plane, doubl
     }
     if (cap_indices.empty()) return failure("The cut does not separate the hit piece.");
 
+    const Ref<Material> material = resolve_cap_material(cap_material);
     Ref<ArrayMesh> detached, retained;
     detached.instantiate();
     retained.instantiate();
@@ -1090,11 +1110,11 @@ Dictionary run_sever(std::vector<SurfaceInput> &input, const Plane &plane, doubl
         return failure("Could not create the severed mesh surfaces.");
     }
     std::vector<int> cap_mapping(geometry.seam_positions.size(), -1);
-    if (!publish_cap(detached, geometry, true, cap_material, cap_indices, cap_mapping)) {
+    if (!publish_cap(detached, geometry, true, material, cap_indices, cap_mapping)) {
         return failure("Could not create the severed limb cap.");
     }
     std::fill(cap_mapping.begin(), cap_mapping.end(), -1);
-    if (!publish_cap(retained, geometry, false, cap_material, cap_indices, cap_mapping)) {
+    if (!publish_cap(retained, geometry, false, material, cap_indices, cap_mapping)) {
         return failure("Could not create the retained mesh cap.");
     }
 
@@ -1112,11 +1132,12 @@ Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, doubl
     SliceGeometry geometry(plane, normal_length, epsilon);
     if (const char *error = geometry.run(input)) return failure(error);
 
+    const Ref<Material> material = resolve_cap_material(cap_material);
     Dictionary result;
     if (separate) {
         TypedArray<ArrayMesh> positive, negative;
-        if (!publish_pieces(positive, input, geometry, true, cap_material) ||
-                !publish_pieces(negative, input, geometry, false, cap_material)) {
+        if (!publish_pieces(positive, input, geometry, true, material) ||
+                !publish_pieces(negative, input, geometry, false, material)) {
             return failure("Could not create the connected sliced meshes.");
         }
         result["positive_pieces"] = positive;
@@ -1132,11 +1153,11 @@ Dictionary run_slice(std::vector<SurfaceInput> &input, const Plane &plane, doubl
             }
         }
         std::vector<int> cap_mapping(geometry.seam_positions.size(), -1);
-        if (!publish_cap(positive, geometry, true, cap_material, geometry.cap_indices, cap_mapping)) {
+        if (!publish_cap(positive, geometry, true, material, geometry.cap_indices, cap_mapping)) {
             return failure("Could not create the slice caps.");
         }
         std::fill(cap_mapping.begin(), cap_mapping.end(), -1);
-        if (!publish_cap(negative, geometry, false, cap_material, geometry.cap_indices, cap_mapping)) {
+        if (!publish_cap(negative, geometry, false, material, geometry.cap_indices, cap_mapping)) {
             return failure("Could not create the slice caps.");
         }
         result["positive_mesh"] = positive;

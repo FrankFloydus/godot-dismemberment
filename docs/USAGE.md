@@ -108,6 +108,14 @@ cuts an already rigid fragment. On success, both return `positive_pieces`,
 the input mesh's local coordinates. On refusal, the dictionary contains
 `error` and the source is untouched.
 
+When `cap_material` is omitted or `null`, the addon uses its bundled
+`materials/slice_cap.tres`, a `StandardMaterial3D` with tiled albedo,
+normal, roughness, and metallic maps. The metallic map is black for the
+organic default. Duplicate the material into your own project to replace
+the maps, adjust UV1 scale, or tune normal strength in the Inspector.
+Pass any Godot `Material` as an override. Cap UVs are planar and measured
+in mesh-local units.
+
 For an animated sword, use the weapon sweep to find the contacted mesh and
 choose a plane through three points on the swept blade. Convert the point
 on that plane to mesh space with `mesh_instance.to_local(point)`. Convert

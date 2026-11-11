@@ -48,7 +48,7 @@ const MAX_SLASH_SEGMENTS := 48
 @export_group("Slash Gesture")
 ## Maximum distance from the camera at which a swipe can select a subject or fragment.
 @export_range(0.5, 20.0, 0.1, "suffix:m") var slash_reach := 6.0
-## Material assigned to newly exposed surfaces on geometric cuts.
+## Override for newly exposed cut surfaces. Leave empty to use the addon's textured default.
 @export var slice_cap_material: Material
 ## Use fewer points in each slice fragment's convex collider to reduce physics cost.
 @export var simplify_fragment_colliders := true
@@ -135,8 +135,7 @@ func _ready() -> void:
 	weapon.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_setup_pellet_traces()
 	plane_slicing.simplify_fragment_colliders = simplify_fragment_colliders
-	if slice_cap_material != null:
-		plane_slicing.cap_material = slice_cap_material
+	plane_slicing.cap_material = slice_cap_material
 	testing = DisplayServer.get_name() == "headless" or "--smoke" in OS.get_cmdline_user_args()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--capture="): testing = true

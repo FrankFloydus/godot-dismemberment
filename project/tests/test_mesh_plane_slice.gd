@@ -1,6 +1,7 @@
 extends SceneTree
 
 const TOLERANCE := 0.00002
+const DEFAULT_CAP_PATH := "res://addons/godot-dismemberment/materials/slice_cap.tres"
 
 var checks := 0
 var failures := 0
@@ -13,6 +14,7 @@ func _run() -> void:
 	var cap := StandardMaterial3D.new()
 	var recut_cap := StandardMaterial3D.new()
 	var cube := _make_boxes([Vector3.ZERO], exterior)
+	_check_default_cap(cube)
 	var original_arrays := cube.surface_get_arrays(0)
 	var offset := _check_cut(cube, Plane(Vector3.RIGHT, 0.35), cap, [exterior],
 		1, 4.0, 2.6, 5.4, "offset cube with collinear seam points")
@@ -56,6 +58,38 @@ func _run() -> void:
 	_check_collision_hull()
 	print("MESH_PLANE_SLICE_CHECKS=%d FAILURES=%d" % [checks, failures])
 	quit(1 if failures else 0)
+
+func _check_default_cap(cube: ArrayMesh) -> void:
+	var bundled := load(DEFAULT_CAP_PATH) as StandardMaterial3D
+	_check(bundled != null, "the addon ships an editable default cap material")
+	if bundled == null:
+		return
+	_check(bundled.albedo_texture != null, "the default cap has an albedo map")
+	_check(bundled.normal_enabled and bundled.normal_texture != null, "the default cap uses a normal map")
+	_check(bundled.roughness_texture != null, "the default cap has a roughness map")
+	_check(bundled.metallic_texture != null, "the default cap has a metallic map")
+	var plane := Plane(Vector3.RIGHT, 0.35)
+	var halves := MeshPlaneSlice.slice_mesh(cube, plane)
+	var pieces := MeshPlaneSlice.slice_mesh_pieces(cube, plane)
+	var sever := MeshPlaneSlice.sever_connected_piece(cube, plane, Vector3.RIGHT)
+	var instance := MeshInstance3D.new()
+	instance.mesh = cube
+	var posed := MeshPlaneSlice.slice_pose(instance, null, plane)
+	instance.free()
+	for pair: Array in [
+			[halves.get("positive_mesh"), halves.get("negative_mesh")],
+			pieces.get("positive_pieces", []) + pieces.get("negative_pieces", []),
+			[sever.get("detached_mesh"), sever.get("retained_mesh")],
+			posed.get("positive_pieces", []) + posed.get("negative_pieces", [])]:
+		var matches := pair.size() == 2
+		for mesh: ArrayMesh in pair:
+			if mesh == null or mesh.get_surface_count() == 0:
+				matches = false
+				continue
+			var cap := mesh.get_surface_count() - 1
+			matches = (matches and mesh.surface_get_name(cap) == "Slice Cap"
+				and mesh.surface_get_material(cap) == bundled)
+		_check(matches, "both cut outputs use the bundled material with no override")
 
 func _check_collision_hull() -> void:
 	var points := PackedVector3Array([Vector3.UP, Vector3.DOWN])
