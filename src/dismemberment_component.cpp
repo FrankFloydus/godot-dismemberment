@@ -53,7 +53,7 @@ static StringName attachment_filter_bone(Node *node, BoneAttachment3D *socket) {
         const String group = groups[i];
         if (group.begins_with("OverrideSocket:")) return group.substr(15);
     }
-    return socket ? socket->get_bone_name() : StringName();
+    return socket ? StringName(socket->get_bone_name()) : StringName();
 }
 
 static void replace_mesh_preserving_blends(MeshInstance3D *instance, const Ref<Mesh> &mesh, bool clear_overrides) {
@@ -598,7 +598,7 @@ void DismembermentComponent::transfer_attachments(const StringName &bone_name, D
             // OverrideSocket filters the cut. The transferred object still
             // uses its authored socket and socket-relative offset when present.
             BoneAttachment3D *socket = memnew(BoneAttachment3D);
-            socket->set_bone_name(has_authored_socket ? source_socket->get_bone_name() : filter_bone);
+            socket->set_bone_name(has_authored_socket ? source_socket->get_bone_name() : String(filter_bone));
             ragdoll->add_child(socket);
             if (!has_authored_socket || attachment->is_set_as_top_level()) {
                 attachment->reparent(socket, true);

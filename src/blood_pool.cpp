@@ -79,11 +79,12 @@ void BloodPool::_ready() {
     const bool can_project = rendering_method != "gl_compatibility" && rendering_method != "" && decal_material.is_null();
     const double yaw = Math::deg_to_rad(UtilityFunctions::randf_range(-10.0, 10.0));
     const Basis visual_rotation = Basis(Vector3(0, 1, 0), yaw) * Basis::from_euler(decal_rotation);
+    const Vector2 footprint(std::max(real_t(0.01), decal_size.x * 2), std::max(real_t(0.01), decal_size.z * 2));
     if (can_project) {
         projected_decal = memnew(Decal);
         projected_decal->set_name("BloodDecal");
         projected_decal->set_texture(Decal::TEXTURE_ALBEDO, texture);
-        projected_decal->set_size(Vector3(std::max(0.01f, decal_size.x * 2), std::max(0.08f, decal_size.y), std::max(0.01f, decal_size.z * 2)));
+        projected_decal->set_size(Vector3(footprint.x, std::max(real_t(0.08), decal_size.y), footprint.y));
         projected_decal->set_basis(visual_rotation);
         add_child(projected_decal);
     } else {
@@ -91,7 +92,7 @@ void BloodPool::_ready() {
         puddle->set_name("BloodPoolCompatibility");
         Ref<PlaneMesh> mesh;
         mesh.instantiate();
-        mesh->set_size(Vector2(std::max(0.01f, decal_size.x * 2), std::max(0.01f, decal_size.z * 2)));
+        mesh->set_size(footprint);
         puddle->set_mesh(mesh);
         puddle->set_position(Vector3(0, 0.003, 0));
         puddle->set_basis(visual_rotation);
