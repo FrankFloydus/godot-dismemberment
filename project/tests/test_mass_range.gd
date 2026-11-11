@@ -511,7 +511,7 @@ func _verify_slice(result: Dictionary) -> void:
 	_expect(unique_angles.size() > 1, "F picks distinct finite cut angles")
 	var fragment_counts := {}
 	var fragments := 0
-	var sample: ArrayMesh
+	var sample: ArrayMesh = null
 	for index in arena.targets.size():
 		var target: Dictionary = arena.targets[index]
 		var component: GoreComponent = target.component

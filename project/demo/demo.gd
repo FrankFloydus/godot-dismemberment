@@ -439,8 +439,8 @@ func _shoot(blood_only := false, hide_only := false) -> Dictionary:
 	var count := clampi(pellet_count, 1, MAX_PELLETS) if is_shell else 1
 	var cone_radius := tan(deg_to_rad(clampf(pellet_spread_degrees, 0.0, 12.0)))
 	var origin := camera.global_position
-	var basis := camera.global_basis
-	var forward := -basis.z
+	var camera_basis := camera.global_basis
+	var forward := -camera_basis.z
 	var query := _make_hit_query(origin, forward, shot_range)
 	var space := get_world_3d().direct_space_state
 	var hits: Array[Dictionary] = []
@@ -450,7 +450,7 @@ func _shoot(blood_only := false, hide_only := false) -> Dictionary:
 		if pellet > 0:
 			var radius := cone_radius * sqrt((float(pellet) - 0.5) / float(count - 1))
 			var angle := float(shots_fired + pellet) * GOLDEN_ANGLE
-			var offset := basis.x * cos(angle) + basis.y * sin(angle)
+			var offset := camera_basis.x * cos(angle) + camera_basis.y * sin(angle)
 			direction = (forward + offset * radius).normalized()
 		query.to = origin + direction * shot_range
 		var hit := space.intersect_ray(query)
@@ -499,17 +499,17 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		limb = limb.get_parent()
 	if limb != null or sliced_remainder:
 		var part: Object = limb if limb != null else collider
-		var index: int = part.get_meta("target_index", -1)
-		if handled_detached.has(part) or handled_stations.has(index):
+		var detached_target_index: int = part.get_meta("target_index", -1)
+		if handled_detached.has(part) or handled_stations.has(detached_target_index):
 			return {}
 		handled_detached[part] = true
 		var sever := {}
-		if index >= 0 and index < targets.size():
-			handled_stations[index] = true
+		if detached_target_index >= 0 and detached_target_index < targets.size():
+			handled_stations[detached_target_index] = true
 			if (sliced_fragment or sliced_remainder) and not blood_only and not hide_only:
 				var impulse := direction * dismemberment_impulse + Vector3.UP * dismemberment_upward_boost
-				sever = plane_slicing.sever_shot(self, hit, targets[index], index, impulse)
-			var gore: GoreComponent = targets[index].component
+				sever = plane_slicing.sever_shot(self, hit, targets[detached_target_index], detached_target_index, impulse)
+			var gore: GoreComponent = targets[detached_target_index].component
 			if is_instance_valid(gore) and gore.enable_blood_particles:
 				gore.spawn_blood_particles(endpoint, direction)
 		if sever.is_empty() and (collider is PhysicalBone3D or (collider is RigidBody3D and sliced_fragment)):
@@ -519,9 +519,9 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		if not sever.is_empty():
 			total_cuts += 1
 			return {"hit": true, "detached": limb != null, "sliced": true, "severed": true,
-				"target": index, "position": endpoint, "bone": sever.bone, "limb": sever.limb}
+				"target": detached_target_index, "position": endpoint, "bone": sever.bone, "limb": sever.limb}
 		return {"hit": true, "detached": limb != null, "sliced": sliced_fragment or sliced_remainder,
-			"target": index, "position": endpoint}
+			"target": detached_target_index, "position": endpoint}
 
 	if not collider.has_meta("target_index") or not collider.has_meta("bone"):
 		return {"hit": false, "surface": true, "position": endpoint}
@@ -588,13 +588,13 @@ func _exit_tree() -> void:
 		warmed_shotgun_impact.free()
 		warmed_shotgun_impact = null
 
-func _spawn_shotgun_impact(position: Vector3, normal: Vector3, direction: Vector3, receiver: Node3D) -> void:
+func _spawn_shotgun_impact(impact_position: Vector3, normal: Vector3, direction: Vector3, receiver: Node3D) -> void:
 	if shotgun_impacts.size() >= MAX_IMPACT_MARKS:
 		_remove_oldest_impact()
 	var impact = warmed_shotgun_impact if warmed_shotgun_impact != null else SHOTGUN_IMPACT.instantiate()
 	warmed_shotgun_impact = null
 	receiver.add_child(impact)
-	impact.place(position, normal, direction)
+	impact.place(impact_position, normal, direction)
 	$ShotgunImpactBursts.emit_at(impact.global_transform, direction,
 		bool(receiver.get_meta(&"dusty_impact", false)))
 	impact.add_to_group("Shotgun Impact")
@@ -663,9 +663,9 @@ func _on_post_dismemberment(bone: StringName, limb: Node, index: int) -> void:
 	var target: Dictionary = targets[index]
 	if not target.ragdoll and _should_ragdoll_on_sever(bone):
 		var remaining: Array[StringName] = []
-		for name: StringName in target.physics_bodies:
-			if not target.missing.has(name):
-				remaining.append(name)
+		for body_bone: StringName in target.physics_bodies:
+			if not target.missing.has(body_bone):
+				remaining.append(body_bone)
 		if not remaining.is_empty():
 			target.skeleton.physical_bones_start_simulation(remaining)
 			target.ragdoll = true
@@ -709,8 +709,8 @@ func _jump_station(index: int) -> void:
 	station_label.text = "%02d / %s" % [index + 1, target.title]
 	_feedback("HOLD MMB AND DRAG TO SLASH · left mouse fires")
 
-func _look_at(position: Vector3) -> void:
-	var direction := (position - camera.global_position).normalized()
+func _look_at(world_position: Vector3) -> void:
+	var direction := (world_position - camera.global_position).normalized()
 	player.rotation.y = atan2(-direction.x, -direction.z)
 	pitch = asin(clampf(direction.y, -1, 1))
 	camera.rotation.x = pitch

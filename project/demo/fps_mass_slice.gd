@@ -205,8 +205,8 @@ func _ragdoll_normal(axis: Vector3, attempt: int) -> Vector3:
 			_random.randf_range(-0.18, 0.18))).normalized()
 	# Folded limbs can form intersecting contours across nearby parallel cuts.
 	# Retry with wider oblique angles against the captured pose.
-	var reference := Vector3.UP if absf(axis.y) < 0.9 else Vector3.RIGHT
-	var tangent := axis.cross(reference).normalized()
+	var reference_axis := Vector3.UP if absf(axis.y) < 0.9 else Vector3.RIGHT
+	var tangent := axis.cross(reference_axis).normalized()
 	var bitangent := axis.cross(tangent)
 	var azimuth := _random.randf_range(-0.2, 0.2) + (attempt - 2) * TAU / 3.0
 	var offset := tangent * cos(azimuth) + bitangent * sin(azimuth)

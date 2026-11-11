@@ -236,7 +236,7 @@ static func _store(visual: MeshInstance3D, layer: Dictionary) -> void:
 static func _publish_caps(visual: MeshInstance3D) -> void:
 	var shared_faces := {}
 	for layer: Dictionary in visual.get_meta(LAYERS_META, []):
-		var local_mesh: ArrayMesh
+		var local_mesh: ArrayMesh = null
 		for face: Dictionary in layer.get("exposed_caps", []):
 			var material: Material = face.material
 			# Arbitrary custom materials may use the volume's local coordinates.

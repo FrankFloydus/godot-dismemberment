@@ -74,7 +74,7 @@ static func resolve(snapshot: Dictionary, mesh_local_hit: Vector3,
 	var ray_end := mesh_local_hit + mesh_local_direction.normalized() * MAX_HULL_DEPTH
 	var best_score := INF
 	var closest: Dictionary = {}
-	var seed := mesh_local_hit
+	var cut_seed := mesh_local_hit
 	var found_ray_contact := false
 	for region: Dictionary in snapshot.get("regions", []):
 		var inverse: Transform3D = region.inverse
@@ -90,7 +90,7 @@ static func resolve(snapshot: Dictionary, mesh_local_hit: Vector3,
 				if not found_ray_contact or ray_score < best_score:
 					best_score = ray_score
 					closest = region
-					seed = ray_contact
+					cut_seed = ray_contact
 				found_ray_contact = true
 				continue
 		if found_ray_contact:
@@ -108,12 +108,12 @@ static func resolve(snapshot: Dictionary, mesh_local_hit: Vector3,
 	var plane: Plane = closest.plane
 	if plane.normal.is_zero_approx():
 		return {}
-	var offset := plane.distance_to(seed)
+	var offset := plane.distance_to(cut_seed)
 	if offset < -MAX_PROXIMAL_HIT_GAP:
 		return {}
-	seed += plane.normal * maxf(0.0, 0.003 - offset)
+	cut_seed += plane.normal * maxf(0.0, 0.003 - offset)
 	var bounds: AABB = snapshot.limb_bounds.get(closest.bone, AABB())
-	return {"bone": closest.bone, "plane": plane, "seed": seed,
+	return {"bone": closest.bone, "plane": plane, "seed": cut_seed,
 		"bounds": bounds.grow(LIMB_BOUNDS_MARGIN)}
 
 static func _capture_poses(mesh: MeshInstance3D, skeleton: Skeleton3D) -> Array[Transform3D]:
