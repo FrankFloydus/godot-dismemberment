@@ -116,6 +116,11 @@ Build a local `Plane` from the resulting normal and point. The demo calls
 the same geometry API from its camera swipe, builds convex rigid bodies from
 the pieces, and publishes the swap after all colliders succeed.
 
+`MeshPlaneSlice.reduce_collision_hull(points)` samples body-local convex
+hull points in 98 directions, keeping the exact extents along the body
+axes. The demo enables it by default for fragment simulation. The display
+and subsequent cuts use the complete sliced mesh.
+
 Use closed, consistently wound triangle meshes. Cuts that overlap a face
 or form nested or touching contours can be refused. Returned pieces are
 pose-baked, so games decide their physics, lifetime, animation, and

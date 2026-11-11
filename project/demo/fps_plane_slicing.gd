@@ -9,6 +9,7 @@ const EPSILON := 0.000001
 
 var tilt_degrees := 0.0
 var cap_material: Material
+var simplify_fragment_colliders := true
 
 func _init() -> void:
 	var default_cap := StandardMaterial3D.new()
@@ -245,9 +246,9 @@ func _make_fragment(mesh: ArrayMesh, mesh_transform: Transform3D, component: Gor
 		body_basis.x = -body_basis.x
 	var body_transform := Transform3D(body_basis, mesh_transform * center)
 	var local_visual := body_transform.affine_inverse() * mesh_transform
-	var points := shape.points
-	for i in points.size():
-		points[i] = local_visual * points[i]
+	var points := local_visual * shape.points
+	if simplify_fragment_colliders and ClassDB.class_has_method(&"MeshPlaneSlice", &"reduce_collision_hull"):
+		points = ClassDB.class_call_static(&"MeshPlaneSlice", &"reduce_collision_hull", points)
 	shape.points = points
 
 	var body := RigidBody3D.new()

@@ -50,7 +50,8 @@ along its plane. Try a horizontal swipe through the middle of the torso or
 a diagonal swipe across the upper body. Each closed piece can fall and be cut
 again. **R** restores the subject. The original **V** forearm cut and
 **Q / E** tilt are also available. Select **Slash Gesture** on the range root
-to edit the reach and cut-surface material.
+to edit the reach and cut-surface material. **Simplify Fragment Colliders**
+uses bounded convex colliders to keep dropped pieces inexpensive to simulate.
 
 Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
 **FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,

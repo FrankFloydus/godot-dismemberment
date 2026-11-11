@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
+#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/plane.hpp>
 
 namespace godot {
@@ -24,6 +25,7 @@ public:
             const Ref<Material> &cap_material = Ref<Material>(), double epsilon = 0.000001);
     static Dictionary slice_pose(MeshInstance3D *mesh, Skeleton3D *skeleton, const Plane &plane,
             const Ref<Material> &cap_material = Ref<Material>(), double epsilon = 0.000001);
+    static PackedVector3Array reduce_collision_hull(const PackedVector3Array &points);
 };
 
 }

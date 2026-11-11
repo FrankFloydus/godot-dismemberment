@@ -131,6 +131,7 @@ func _run() -> void:
 	var torso_sections := 0
 	var capped_pieces := 0
 	var live_colliders := true
+	var bounded_colliders := true
 	var waist_plane := Plane(Vector3.UP, WAIST_HEIGHT)
 	for body: RigidBody3D in fragments:
 		var visual := body.get_node("Mesh") as MeshInstance3D
@@ -138,6 +139,8 @@ func _run() -> void:
 		var shape := body.get_node("CollisionShape3D") as CollisionShape3D
 		live_colliders = (live_colliders and not body.freeze and body.collision_layer != 0
 			and body.is_in_group("Dismembered Limb") and shape.shape is ConvexPolygonShape3D)
+		var convex := shape.shape as ConvexPolygonShape3D
+		bounded_colliders = bounded_colliders and convex != null and convex.points.size() <= 98
 		capped_pieces += int(_cap_is_on_plane(mesh, source_transform, waist_plane))
 		var bounds := mesh.get_aabb()
 		if bounds.size.y > 0.65:
@@ -147,6 +150,7 @@ func _run() -> void:
 		# Freeze pieces only after checking that gameplay spawned them as live bodies.
 		body.freeze = true
 	_expect(live_colliders, "all output sections are live rigid bodies with convex collision")
+	_expect(bounded_colliders, "whole-mesh fragments use bounded convex collision point counts")
 	_expect(capped_pieces >= 4, "both torso sections and the detached arms expose the authored cap material on the swipe plane")
 	if not _expect(torso_sections == 2 and upper != null, "the whole-body swipe creates upper and lower torso-scale pieces"):
 		await _finish()

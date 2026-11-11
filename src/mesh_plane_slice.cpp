@@ -867,6 +867,43 @@ Dictionary slice_rigid(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref
     return run_slice(input, plane, normal_length, cap_material, epsilon, separate);
 }
 
+bool spans_solid_hull(const PackedVector3Array &points) {
+    if (points.size() < 4) return false;
+    const Vector3 origin = points[0];
+    Vector3 axis;
+    real_t extent_squared = 0;
+    for (const Vector3 &point : points) {
+        const Vector3 offset = point - origin;
+        const real_t length_squared = offset.length_squared();
+        if (length_squared > extent_squared) {
+            axis = offset;
+            extent_squared = length_squared;
+        }
+    }
+    if (extent_squared <= 0 || !std::isfinite(extent_squared)) return false;
+    const real_t extent = std::sqrt(extent_squared);
+    axis /= extent;
+
+    // Measure flatness relative to the hull's size.
+    constexpr real_t flatness = real_t(0.000001);
+    Vector3 normal;
+    real_t width_squared = 0;
+    for (const Vector3 &point : points) {
+        const Vector3 cross = axis.cross((point - origin) / extent);
+        const real_t length_squared = cross.length_squared();
+        if (length_squared > width_squared) {
+            normal = cross;
+            width_squared = length_squared;
+        }
+    }
+    if (width_squared <= flatness * flatness) return false;
+    normal /= std::sqrt(width_squared);
+    for (const Vector3 &point : points) {
+        if (std::abs(normal.dot((point - origin) / extent)) > flatness) return true;
+    }
+    return false;
+}
+
 }
 
 void MeshPlaneSlice::_bind_methods() {
@@ -876,6 +913,8 @@ void MeshPlaneSlice::_bind_methods() {
             &MeshPlaneSlice::slice_mesh_pieces, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
     ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("slice_pose", "mesh", "skeleton", "plane", "cap_material", "epsilon"),
             &MeshPlaneSlice::slice_pose, DEFVAL(Ref<Material>()), DEFVAL(0.000001));
+    ClassDB::bind_static_method("MeshPlaneSlice", D_METHOD("reduce_collision_hull", "points"),
+            &MeshPlaneSlice::reduce_collision_hull);
 }
 
 Dictionary MeshPlaneSlice::slice_mesh(const Ref<ArrayMesh> &mesh, const Plane &plane, const Ref<Material> &cap_material, double epsilon) {
@@ -900,6 +939,53 @@ Dictionary MeshPlaneSlice::slice_pose(MeshInstance3D *mesh, Skeleton3D *skeleton
         }
     }
     return run_slice(input, plane, normal_length, cap_material, epsilon, true);
+}
+
+PackedVector3Array MeshPlaneSlice::reduce_collision_hull(const PackedVector3Array &points) {
+    // The shell of the 5 x 5 x 5 direction grid has 98 directions.
+    constexpr size_t point_budget = 98;
+    const int64_t count = points.size();
+    if (count <= int64_t(point_budget)) return points;
+
+    const Vector3 *vertices = points.ptr();
+    const double safe_coordinate = std::numeric_limits<double>::max() / 8.0;
+    for (int64_t i = 0; i < count; ++i) {
+        const Vector3 &point = vertices[i];
+        if (!point.is_finite() || std::abs(double(point.x)) > safe_coordinate ||
+                std::abs(double(point.y)) > safe_coordinate || std::abs(double(point.z)) > safe_coordinate) {
+            return points;
+        }
+    }
+
+    std::array<int64_t, point_budget> selected;
+    size_t selected_count = 0;
+    for (int x = -2; x <= 2; ++x) {
+        for (int y = -2; y <= 2; ++y) {
+            for (int z = -2; z <= 2; ++z) {
+                if (std::abs(x) < 2 && std::abs(y) < 2 && std::abs(z) < 2) continue;
+                const auto project = [x, y, z](const Vector3 &point) {
+                    return double(point.x) * x + double(point.y) * y + double(point.z) * z;
+                };
+                int64_t best_index = 0;
+                double best_projection = project(vertices[0]);
+                for (int64_t i = 1; i < count; ++i) {
+                    const double projection = project(vertices[i]);
+                    if (projection > best_projection) {
+                        best_projection = projection;
+                        best_index = i;
+                    }
+                }
+                const auto end = selected.begin() + selected_count;
+                if (std::find(selected.begin(), end, best_index) == end) selected[selected_count++] = best_index;
+            }
+        }
+    }
+
+    PackedVector3Array reduced;
+    reduced.resize(selected_count);
+    Vector3 *result = reduced.ptrw();
+    for (size_t i = 0; i < selected_count; ++i) result[i] = vertices[selected[i]];
+    return spans_solid_hull(reduced) ? reduced : points;
 }
 
 }

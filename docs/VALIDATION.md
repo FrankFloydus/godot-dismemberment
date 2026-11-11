@@ -51,6 +51,26 @@ compared with **100 ms** when the snapshot was first published as an
 intermediate render mesh. Geometry and convex collision are still built
 synchronously in the demo.
 
+### Frame time after multiple swipes
+
+Three waist cuts produced 12 rigid fragments at the range's usual 240 Hz
+physics rate. The Windows release test used a fixed 1440 × 900 Forward+
+viewport with VSync disabled. Each condition sampled 100 frames after
+1.35 seconds of falling and floor contact. The order was full hulls,
+bounded hulls, bounded hulls, full hulls.
+
+| Measurement | Full convex hulls | Bounded convex hulls |
+| --- | ---: | ---: |
+| Points per fragment in this test | 806–2,036 | 59–80 |
+| Median physics tick | 5.27 ms | 0.91 ms |
+| Median frame time | 39.5 ms | 1.18 ms |
+| 95th-percentile frame time | 41.1 ms | 1.80 ms |
+
+Both modes submitted the same visible and shadow primitive counts. The
+bounded collider is an approximation of the full convex hull and keeps its
+body-axis extents. These measurements cover simulation after the cuts. The
+input-to-cut timings are recorded above.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

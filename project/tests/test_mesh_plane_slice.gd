@@ -51,8 +51,48 @@ func _run() -> void:
 	_check_rejected(null, Plane(Vector3.RIGHT, 0.35), "null source")
 	_check(cube.get_surface_count() == 1 and cube.surface_get_material(0) == exterior and
 		cube.surface_get_arrays(0) == original_arrays, "slices leave the input mesh untouched")
+	_check_collision_hull()
 	print("MESH_PLANE_SLICE_CHECKS=%d FAILURES=%d" % [checks, failures])
 	quit(1 if failures else 0)
+
+func _check_collision_hull() -> void:
+	var points := PackedVector3Array([Vector3.UP, Vector3.DOWN])
+	for latitude in range(1, 12):
+		var theta := PI * latitude / 12.0
+		for longitude in 24:
+			var phi := TAU * longitude / 24.0
+			points.append(Vector3(0.8 * sin(theta) * cos(phi), cos(theta), 0.45 * sin(theta) * sin(phi)))
+	var reduced := MeshPlaneSlice.reduce_collision_hull(points)
+	_check(reduced.size() >= 4 and reduced.size() <= 98 and reduced.size() < points.size(),
+		"a dense convex hull has bounded support point count")
+	_check(reduced == MeshPlaneSlice.reduce_collision_hull(points), "hull reduction is deterministic")
+
+	var supports_preserved := true
+	for x in range(-2, 3):
+		for y in range(-2, 3):
+			for z in range(-2, 3):
+				if maxi(absi(x), maxi(absi(y), absi(z))) != 2:
+					continue
+				var direction := Vector3(x, y, z)
+				supports_preserved = supports_preserved and is_equal_approx(
+					_maximum_projection(points, direction), _maximum_projection(reduced, direction))
+	_check(supports_preserved, "reduction preserves the exact extrema in all 98 support directions")
+
+	var tetrahedron := PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP, Vector3.BACK])
+	_check(MeshPlaneSlice.reduce_collision_hull(tetrahedron) == tetrahedron, "small hulls stay unchanged")
+	var coplanar := PackedVector3Array()
+	for point in points:
+		coplanar.append(Vector3(point.x, 0.0, point.z))
+	_check(MeshPlaneSlice.reduce_collision_hull(coplanar) == coplanar, "a flat hull uses the original points")
+	var invalid := points.duplicate()
+	invalid.append(Vector3.INF)
+	_check(MeshPlaneSlice.reduce_collision_hull(invalid) == invalid, "non-finite hull input stays unchanged")
+
+func _maximum_projection(points: PackedVector3Array, direction: Vector3) -> float:
+	var farthest := -INF
+	for point in points:
+		farthest = maxf(farthest, direction.dot(point))
+	return farthest
 
 func _check_connected_pieces(two_boxes: ArrayMesh, exterior: Material, cap: Material) -> void:
 	var untouched_material := StandardMaterial3D.new()
