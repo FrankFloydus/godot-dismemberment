@@ -2,6 +2,7 @@ extends SceneTree
 ## Authored scene structure must exist before the FPS controller enters the tree.
 
 const DEMO_PATH := "res://demo/demo.tscn"
+const RANGE_PATH := "res://demo/fps_range.tscn"
 const STATION_NAMES := [&"Humanoid", &"Articulated", &"Modular"]
 
 var checks := 0
@@ -152,12 +153,23 @@ func _run() -> void:
 	if packed_scene == null:
 		_finish()
 		return
+	# Opening the range's own editor tab reloads the already cached dependency.
+	var reloaded_range := ResourceLoader.load(RANGE_PATH, "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
+	_expect(reloaded_range != null, "the cached range reloads as a standalone scene")
 	var arena := packed_scene.instantiate() as Node3D
 	var authored_range := arena.get_node_or_null("Range")
 	var player := arena.get_node_or_null("FirstPersonPlayer") as CharacterBody3D
 	var camera := arena.get_node_or_null("FirstPersonPlayer/FirstPersonCamera") as Camera3D
 	_expect(authored_range != null and authored_range.find_child("BloodReceivingFloor", true, false) is StaticBody3D,
 		"range and solid floor exist before play")
+	if authored_range != null:
+		var batches := authored_range.find_children("*", "MultiMeshInstance3D", true, false)
+		var batches_ready := batches.size() == 12
+		for batch: MultiMeshInstance3D in batches:
+			var mesh := batch.multimesh
+			batches_ready = (batches_ready and mesh != null and mesh.transform_format == MultiMesh.TRANSFORM_3D
+				and mesh.instance_count > 0)
+		_expect(batches_ready, "reloading preserves the twelve authored 3D prop batches")
 	_expect(player != null and camera != null
 		and camera.get_node_or_null("ImpulseProjector/Muzzle") is Marker3D,
 		"player, camera, and muzzle exist before play")
