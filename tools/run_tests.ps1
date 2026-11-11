@@ -41,6 +41,8 @@ function Invoke-BehaviorTest {
     if ($captured -match '^ERROR:|^SCRIPT ERROR:') { throw "Engine error during $Script" }
 }
 
+Invoke-BehaviorTest 'test_mesh_plane_slice.gd' 'MESH_PLANE_SLICE_CHECKS=\d+ FAILURES=0'
+Invoke-BehaviorTest 'test_fps_plane_slicing.gd' 'FPS_PLANE_SLICE_CHECKS=\d+ FAILURES=0'
 Invoke-BehaviorTest 'test_component_inspector.gd' 'COMPONENT_INSPECTOR_CHECKS=\d+ FAILURES=0'
 Invoke-BehaviorTest 'test_gore_audit.gd' 'Gore source audit checks=\d+ failures=0'
 Invoke-BehaviorTest 'test_blood_pool_parity.gd' 'Blood pool parity checks=\d+ failures=0'
@@ -62,6 +64,7 @@ if ($Rendered) {
     Invoke-BehaviorTest 'test_real_skin_geometry.gd' 'REAL_SKIN_GEOMETRY: checks=\d+ failures=0' $true
     Invoke-BehaviorTest 'test_sequential_skin.gd' 'SEQUENTIAL_SKIN: checks=\d+ failures=0' $true
     Invoke-BehaviorTest 'test_fps_reset.gd' 'GODOT_DISMEMBERMENT_FPS_RESET_PASS' $true
+    Invoke-BehaviorTest 'test_fps_plane_slicing.gd' 'FPS_PLANE_SLICE_CHECKS=\d+ FAILURES=0' $true
     Invoke-BehaviorTest 'test_shotgun_impacts.gd' 'SHOTGUN_IMPACTS_CHECKS=\d+ FAILURES=0' $true
     Invoke-BehaviorTest 'test_physics_fidelity.gd' 'GODOT_DISMEMBERMENT_PHYSICS_FIDELITY_PASS' $true @('--head-only')
     Invoke-BehaviorTest 'test_ragdoll_comparison.gd' 'RAGDOLL_COMPARISON_CHECKS=\d+ FAILURES=0' $true

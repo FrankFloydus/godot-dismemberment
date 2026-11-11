@@ -7,6 +7,7 @@
 
 #include "limb_map.h"
 #include "mesh_partition.h"
+#include "mesh_plane_slice.h"
 #include "dismembered_limb.h"
 #include "dismemberment_component.h"
 #include "blood_pool.h"
@@ -22,6 +23,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level)
 	}
 	GDREGISTER_CLASS(LimbMap);
 	GDREGISTER_CLASS(MeshPartition);
+	GDREGISTER_CLASS(MeshPlaneSlice);
 	GDREGISTER_CLASS(DismemberedAnimInstance);
 	GDREGISTER_CLASS(DismemberedLimb);
 	GDREGISTER_CLASS(DismembermentComponent);

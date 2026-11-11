@@ -11,6 +11,30 @@ Both Windows native targets were compiled with SCons 4.8.1 and MSVC C++17:
 
     ./tools/build.ps1
 
+## Experimental plane slicing
+
+`test_mesh_plane_slice.gd` checks closed mesh geometry, cap winding and
+material, signed volume, disjoint and concave sections, recuts, and safe
+rejection. `test_fps_plane_slicing.gd` drives the actual demo keys and camera
+rays through an oblique forearm cut, a fragment recut, and reset.
+
+The Windows release DLL was measured in Vulkan Forward+ on the FPS humanoid
+with 262,348 triangles. Three fresh processes per version each performed
+three cuts with R resets, VSync disabled and cut cues muted. The optimized
+kernel uses a contiguous edge table for oriented topology validation and
+copies triangles that lie strictly on one side without clipping them.
+
+| Measurement | Initial median | Optimized median |
+| --- | ---: | ---: |
+| First cut, handler return | 182.4 ms | 95.7 ms |
+| First cut, next draw signal | 184.6 ms | 98.1 ms |
+| Later cut, handler return | 162.4 ms | 89.8 ms |
+| Slice geometry and surface creation | 128.2 ms | 53.3 ms |
+
+Pose capture took about 23 ms. The demo still rebuilds the full posed mesh
+synchronously and holds the remainder in the captured pose until reset. The
+experimental tool has no replication path.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

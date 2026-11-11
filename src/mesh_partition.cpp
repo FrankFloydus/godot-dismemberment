@@ -1,6 +1,8 @@
 #include "mesh_partition.h"
 
+#include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/skin.hpp>
+#include <godot_cpp/classes/skin_reference.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
@@ -15,6 +17,8 @@
 
 namespace godot {
 namespace {
+
+constexpr float SNAPSHOT_BLEND_EPSILON = 0.0001f;
 
 template <class Packed>
 Variant compact_values(const Variant &value, const std::vector<int> &vertices, int vertex_count) {
@@ -182,7 +186,8 @@ bool belongs_to_limb(Skeleton3D *skeleton, int bone, int root) {
 // positions; RELATIVE arrays contain offsets. The remaining mesh retains its
 // original blend channels so it can continue animating after the partition.
 Array blended_arrays(const Array &base, const TypedArray<Array> &shapes,
-        MeshInstance3D *instance, bool relative) {
+        MeshInstance3D *instance, bool relative, bool strict = false) {
+    if (strict && shapes.size() != instance->get_blend_shape_count()) return {};
     Array output = base.duplicate();
     if (shapes.is_empty()) return output;
     PackedVector3Array positions = base[Mesh::ARRAY_VERTEX];
@@ -193,12 +198,17 @@ Array blended_arrays(const Array &base, const TypedArray<Array> &shapes,
     const PackedFloat32Array base_tangents = tangents;
     for (int shape_index = 0; shape_index < shapes.size() && shape_index < instance->get_blend_shape_count(); ++shape_index) {
         const float weight = instance->get_blend_shape_value(shape_index);
-        if (std::abs(weight) <= 0.000001f) continue;
+        if (std::abs(weight) <= (strict ? SNAPSHOT_BLEND_EPSILON : 0.000001f)) continue;
         const Array shape = shapes[shape_index];
-        if (shape.size() < Mesh::ARRAY_MAX) continue;
+        if (shape.size() < Mesh::ARRAY_MAX) {
+            if (strict) return {};
+            continue;
+        }
         const PackedVector3Array shape_positions = shape[Mesh::ARRAY_VERTEX];
         const PackedVector3Array shape_normals = shape[Mesh::ARRAY_NORMAL];
         const PackedFloat32Array shape_tangents = shape[Mesh::ARRAY_TANGENT];
+        if (strict && (shape_positions.size() != positions.size() ||
+                shape_normals.size() != normals.size() || shape_tangents.size() != tangents.size())) return {};
         if (shape_positions.size() == positions.size()) {
             for (int vertex = 0; vertex < positions.size(); ++vertex) {
                 positions.set(vertex, positions[vertex] + (shape_positions[vertex] - (relative ? Vector3() : base_positions[vertex])) * weight);
@@ -217,64 +227,97 @@ Array blended_arrays(const Array &base, const TypedArray<Array> &shapes,
             }
         }
     }
+    if (strict) {
+        Vector3 *normal_data = normals.ptrw();
+        for (int64_t vertex = 0; vertex < normals.size(); ++vertex) normal_data[vertex] = normal_data[vertex].normalized();
+        float *tangent_data = tangents.ptrw();
+        for (int64_t offset = 0; offset < tangents.size(); offset += 4) {
+            const Vector3 direction = Vector3(tangent_data[offset], tangent_data[offset + 1], tangent_data[offset + 2]).normalized();
+            tangent_data[offset] = direction.x;
+            tangent_data[offset + 1] = direction.y;
+            tangent_data[offset + 2] = direction.z;
+        }
+    }
     output[Mesh::ARRAY_VERTEX] = positions;
     if (!normals.is_empty()) output[Mesh::ARRAY_NORMAL] = normals;
     if (!tangents.is_empty()) output[Mesh::ARRAY_TANGENT] = tangents;
     return output;
 }
 
-void bake_skin(Array &arrays, const Ref<Skin> &skin, Skeleton3D *skeleton,
-        MeshInstance3D *instance) {
+struct SkinBind {
+    Transform3D transform;
+    Basis normal_basis;
+    bool valid = false;
+    bool valid_normal = false;
+};
+
+SkinBind make_skin_bind(const Transform3D &transform, bool match_renderer) {
+    SkinBind bind;
+    bind.transform = transform;
+    bind.valid = true;
+    if (match_renderer) {
+        bind.normal_basis = transform.basis;
+        bind.valid_normal = true;
+    } else if (std::abs(transform.basis.determinant()) > 0.00000001) {
+        bind.normal_basis = transform.basis.inverse().transposed();
+        bind.valid_normal = true;
+    }
+    return bind;
+}
+
+bool bake_skin_arrays(Array &arrays, const std::vector<SkinBind> &palette, bool snapshot) {
     PackedVector3Array positions = arrays[Mesh::ARRAY_VERTEX];
     PackedVector3Array normals = arrays[Mesh::ARRAY_NORMAL];
     PackedFloat32Array tangents = arrays[Mesh::ARRAY_TANGENT];
     const PackedInt32Array bones = arrays[Mesh::ARRAY_BONES];
     const PackedFloat32Array weights = arrays[Mesh::ARRAY_WEIGHTS];
     const int vertex_count = positions.size();
-    if (vertex_count == 0 || bones.size() != weights.size() || bones.size() % vertex_count != 0) return;
+    if (vertex_count == 0 || bones.size() != weights.size() || bones.size() % vertex_count != 0) return false;
     const int influence_count = bones.size() / vertex_count;
-    if (influence_count != 4 && influence_count != 8) return;
-    const Transform3D mesh_from_skeleton = instance->get_global_transform().affine_inverse() * skeleton->get_global_transform();
-    const Transform3D skeleton_from_mesh = mesh_from_skeleton.affine_inverse();
-    const int bind_count = skin.is_valid() ? skin->get_bind_count() : skeleton->get_bone_count();
-    std::vector<Transform3D> transforms(bind_count);
-    std::vector<bool> valid(bind_count, false);
-    for (int bind = 0; bind < bind_count; ++bind) {
-        const int bone = mapped_bone(skin, skeleton, bind);
-        if (bone < 0 || bone >= skeleton->get_bone_count()) continue;
-        const Transform3D inverse_bind = skin.is_valid() ? skin->get_bind_pose(bind) :
-                skeleton->get_bone_global_rest(bone).affine_inverse() * skeleton_from_mesh;
-        transforms[bind] = mesh_from_skeleton * skeleton->get_bone_global_pose(bone) * inverse_bind;
-        valid[bind] = true;
-    }
+    if (influence_count != 4 && influence_count != 8) return false;
+    Vector3 *position_data = positions.ptrw();
+    Vector3 *normal_data = normals.size() == vertex_count ? normals.ptrw() : nullptr;
+    float *tangent_data = tangents.size() == int64_t(vertex_count) * 4 ? tangents.ptrw() : nullptr;
+    const int32_t *bone_data = bones.ptr();
+    const float *weight_data = weights.ptr();
     for (int vertex = 0; vertex < vertex_count; ++vertex) {
         Vector3 position, normal, tangent;
-        const Vector3 input_position = positions[vertex];
-        const Vector3 input_normal = normals.size() == vertex_count ? normals[vertex] : Vector3();
-        const Vector3 input_tangent = tangents.size() == vertex_count * 4 ?
-                Vector3(tangents[vertex * 4], tangents[vertex * 4 + 1], tangents[vertex * 4 + 2]) : Vector3();
+        const Vector3 input_position = position_data[vertex];
+        const Vector3 input_normal = normal_data ? normal_data[vertex] : Vector3();
+        const int64_t tangent_offset = int64_t(vertex) * 4;
+        const Vector3 input_tangent = tangent_data ?
+                Vector3(tangent_data[tangent_offset], tangent_data[tangent_offset + 1], tangent_data[tangent_offset + 2]) : Vector3();
         double total_weight = 0.0;
         for (int influence = 0; influence < influence_count; ++influence) {
-            const int element = vertex * influence_count + influence;
-            const int bind = bones[element];
-            const double weight = weights[element];
-            if (weight <= 0 || bind < 0 || bind >= bind_count || !valid[bind]) continue;
-            const Transform3D &transform = transforms[bind];
-            position += transform.xform(input_position) * weight;
-            if (std::abs(transform.basis.determinant()) > 0.00000001) {
-                normal += transform.basis.inverse().transposed().xform(input_normal) * weight;
+            const int64_t element = int64_t(vertex) * influence_count + influence;
+            const double weight = weight_data[element];
+            if (weight == 0.0) continue;
+            const int index = bone_data[element];
+            if (weight < 0.0 || index < 0 || size_t(index) >= palette.size() || !palette[index].valid ||
+                    (snapshot && !std::isfinite(weight))) {
+                if (snapshot) return false;
+                continue;
             }
-            tangent += transform.basis.xform(input_tangent) * weight;
+            const SkinBind &bind = palette[index];
+            position += bind.transform.xform(input_position) * weight;
+            if (normal_data && bind.valid_normal) normal += bind.normal_basis.xform(input_normal) * weight;
+            if (tangent_data) tangent += bind.transform.basis.xform(input_tangent) * weight;
             total_weight += weight;
         }
-        if (total_weight <= 0.000001) continue;
-        positions.set(vertex, position / total_weight);
-        if (normals.size() == vertex_count) normals.set(vertex, normal.normalized());
-        if (tangents.size() == vertex_count * 4) {
-            tangent = tangent.normalized();
-            tangents.set(vertex * 4, tangent.x);
-            tangents.set(vertex * 4 + 1, tangent.y);
-            tangents.set(vertex * 4 + 2, tangent.z);
+        if (total_weight <= 0.000001) {
+            if (snapshot) return false;
+            continue;
+        }
+        // Godot's 3D skin shader uses the packed weights directly. The older
+        // partition path retains its weight normalization for compatibility.
+        if (snapshot && (!position.is_finite() || !normal.is_finite() || !tangent.is_finite())) return false;
+        position_data[vertex] = snapshot ? position : position / total_weight;
+        if (normal_data) normal_data[vertex] = snapshot && normal.is_zero_approx() ? input_normal : normal.normalized();
+        if (tangent_data) {
+            tangent = snapshot && tangent.is_zero_approx() ? input_tangent : tangent.normalized();
+            tangent_data[tangent_offset] = tangent.x;
+            tangent_data[tangent_offset + 1] = tangent.y;
+            tangent_data[tangent_offset + 2] = tangent.z;
         }
     }
     arrays[Mesh::ARRAY_VERTEX] = positions;
@@ -282,6 +325,57 @@ void bake_skin(Array &arrays, const Ref<Skin> &skin, Skeleton3D *skeleton,
     if (!tangents.is_empty()) arrays[Mesh::ARRAY_TANGENT] = tangents;
     arrays[Mesh::ARRAY_BONES] = Variant();
     arrays[Mesh::ARRAY_WEIGHTS] = Variant();
+    return true;
+}
+
+void bake_skin(Array &arrays, const Ref<Skin> &skin, Skeleton3D *skeleton,
+        MeshInstance3D *instance) {
+    const Transform3D mesh_from_skeleton = instance->get_global_transform().affine_inverse() * skeleton->get_global_transform();
+    const Transform3D skeleton_from_mesh = mesh_from_skeleton.affine_inverse();
+    const int bind_count = skin.is_valid() ? skin->get_bind_count() : skeleton->get_bone_count();
+    std::vector<SkinBind> palette(bind_count);
+    for (int bind = 0; bind < bind_count; ++bind) {
+        const int bone = mapped_bone(skin, skeleton, bind);
+        if (bone < 0 || bone >= skeleton->get_bone_count()) continue;
+        const Transform3D inverse_bind = skin.is_valid() ? skin->get_bind_pose(bind) :
+                skeleton->get_bone_global_rest(bone).affine_inverse() * skeleton_from_mesh;
+        palette[bind] = make_skin_bind(mesh_from_skeleton * skeleton->get_bone_global_pose(bone) * inverse_bind, false);
+    }
+    bake_skin_arrays(arrays, palette, false);
+}
+
+std::vector<SkinBind> snapshot_palette(MeshInstance3D *mesh, Skeleton3D *skeleton) {
+    if (!skeleton || skeleton->get_bone_count() == 0) return {};
+    Ref<Skin> skin = mesh->get_skin();
+    const Ref<SkinReference> reference = mesh->get_skin_reference();
+    RID palette_rid;
+    if (reference.is_valid()) {
+        const NodePath skeleton_path = mesh->get_skeleton_path();
+        if (!skeleton_path.is_empty() && mesh->get_node_or_null(skeleton_path) != skeleton) return {};
+        skin = reference->get_skin();
+        palette_rid = reference->get_skeleton();
+    }
+    const int bind_count = skin.is_valid() ? skin->get_bind_count() : skeleton->get_bone_count();
+    RenderingServer *renderer = RenderingServer::get_singleton();
+    const bool use_rendered_pose = renderer && palette_rid.is_valid() && renderer->skeleton_get_bone_count(palette_rid) == bind_count;
+    std::vector<SkinBind> palette(bind_count);
+    for (int slot = 0; slot < bind_count; ++slot) {
+        const int bone = mapped_bone(skin, skeleton, slot);
+        if (bone < 0 || bone >= skeleton->get_bone_count()) continue;
+        // The 3D renderer applies its bind palette in mesh-local coordinates.
+        // Instance placement is applied later, even when the nodes have different transforms.
+        Transform3D transform;
+        if (use_rendered_pose) {
+            transform = renderer->skeleton_bone_get_transform(palette_rid, slot);
+        } else {
+            const Transform3D rest = skeleton->get_bone_global_rest(bone);
+            if (skin.is_null() && (rest.basis.determinant() == 0.0 || !rest.is_finite())) continue;
+            const Transform3D inverse_bind = skin.is_valid() ? skin->get_bind_pose(slot) : rest.affine_inverse();
+            transform = skeleton->get_bone_global_pose(bone) * inverse_bind;
+        }
+        if (transform.is_finite()) palette[slot] = make_skin_bind(transform, true);
+    }
+    return palette;
 }
 
 }
@@ -290,6 +384,61 @@ void MeshPartition::_bind_methods() {
     ClassDB::bind_static_method("MeshPartition", D_METHOD("isolate_limb", "mesh", "skeleton", "bone", "threshold", "bake_pose"),
             &MeshPartition::isolate_limb, DEFVAL(0.5), DEFVAL(true));
     ClassDB::bind_static_method("MeshPartition", D_METHOD("get_surface_lods", "mesh", "surface"), &MeshPartition::get_surface_lods);
+    ClassDB::bind_static_method("MeshPartition", D_METHOD("snapshot_pose", "mesh", "skeleton"), &MeshPartition::snapshot_pose);
+}
+
+Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D *skeleton) {
+    if (!instance) return {};
+    const Ref<ArrayMesh> source = instance->get_mesh();
+    if (source.is_null() || source->get_surface_count() == 0) return {};
+
+    bool active_blends = false;
+    for (int blend = 0; blend < source->get_blend_shape_count(); ++blend) {
+        const float weight = instance->get_blend_shape_value(blend);
+        if (!std::isfinite(weight)) return {};
+        active_blends |= std::abs(weight) > SNAPSHOT_BLEND_EPSILON;
+    }
+    const bool relative_blends = source->get_blend_shape_mode() == Mesh::BLEND_SHAPE_MODE_RELATIVE;
+    const uint64_t skin_channels = Mesh::ARRAY_FORMAT_BONES | Mesh::ARRAY_FORMAT_WEIGHTS;
+    const uint64_t retained_flags = (uint64_t(0xfff) << Mesh::ARRAY_FORMAT_CUSTOM_BASE) | Mesh::ARRAY_FLAG_USE_DYNAMIC_UPDATE;
+    std::vector<SkinBind> palette;
+    Ref<ArrayMesh> output;
+    output.instantiate();
+    const int surface_count = source->get_surface_count();
+    for (int surface = 0; surface < surface_count; ++surface) {
+        if (source->surface_get_primitive_type(surface) != Mesh::PRIMITIVE_TRIANGLES) return {};
+        const uint64_t format = source->surface_get_format(surface);
+        Array arrays = source->surface_get_arrays(surface);
+        if (arrays.size() != Mesh::ARRAY_MAX || arrays[Mesh::ARRAY_VERTEX].get_type() != Variant::PACKED_VECTOR3_ARRAY) return {};
+        const PackedVector3Array positions = arrays[Mesh::ARRAY_VERTEX];
+        const PackedVector3Array normals = arrays[Mesh::ARRAY_NORMAL];
+        const PackedFloat32Array tangents = arrays[Mesh::ARRAY_TANGENT];
+        const PackedInt32Array indices = arrays[Mesh::ARRAY_INDEX];
+        const int64_t vertex_count = positions.size();
+        if (vertex_count < 3 || (!normals.is_empty() && normals.size() != vertex_count) ||
+                (!tangents.is_empty() && tangents.size() != vertex_count * 4) ||
+                (indices.is_empty() ? vertex_count : indices.size()) % 3 != 0) return {};
+        for (int32_t index : indices) if (index < 0 || index >= vertex_count) return {};
+
+        if (active_blends) {
+            arrays = blended_arrays(arrays, source->surface_get_blend_shape_arrays(surface), instance, relative_blends, true);
+            if (arrays.is_empty()) return {};
+        }
+        const uint64_t surface_skin = format & skin_channels;
+        if (surface_skin != 0) {
+            if (surface_skin != skin_channels) return {};
+            if (palette.empty()) palette = snapshot_palette(instance, skeleton);
+            if (palette.empty() || !bake_skin_arrays(arrays, palette, true)) return {};
+        } else {
+            const PackedVector3Array posed_positions = arrays[Mesh::ARRAY_VERTEX];
+            for (const Vector3 &position : posed_positions) if (!position.is_finite()) return {};
+        }
+        output->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays, {}, {}, BitField<Mesh::ArrayFormat>(format & retained_flags));
+        if (output->get_surface_count() != surface + 1) return {};
+        output->surface_set_material(surface, instance->get_active_material(surface));
+        output->surface_set_name(surface, source->surface_get_name(surface));
+    }
+    return output;
 }
 
 Dictionary MeshPartition::get_surface_lods(const Ref<ArrayMesh> &mesh, int surface) {

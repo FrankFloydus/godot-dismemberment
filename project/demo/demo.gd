@@ -5,6 +5,7 @@ extends Node3D
 const SHOTGUN_IMPACT := preload("res://demo/shotgun_impact.tscn")
 const TRACER_SHADER := preload("res://demo/shotgun_tracer.gdshader")
 const RangeAudio := preload("res://demo/fps_audio.gd")
+const PlaneSlicing := preload("res://demo/fps_plane_slicing.gd")
 const MuzzleFlashParticles := preload("res://demo/muzzle_flash_particles.gd")
 const GOLDEN_ANGLE := 2.399963229728653
 const MAX_PELLETS := 16
@@ -110,6 +111,7 @@ var tracer_count := 0
 var tracer_forward := Vector3.FORWARD
 var warmed_shotgun_impact: Node
 var cut_audio_contact := Vector3.INF
+var plane_slicing := PlaneSlicing.new()
 
 func _ready() -> void:
 	# Prepare the first decal before interactive shooting begins.
@@ -184,9 +186,9 @@ func _sync_hitboxes() -> void:
 		for hitbox in target.hitboxes:
 			var area: Area3D = hitbox.area
 			var missing: bool = target.missing.has(hitbox.bone)
-			var use_physical_body: bool = bool(target.get("ragdoll", false))
-			area.collision_layer = 0 if missing or use_physical_body else hitbox.collision_layer
-			if not missing and not use_physical_body:
+			var suspend_hitboxes: bool = target.ragdoll or target.has("plane_slice")
+			area.collision_layer = 0 if missing or suspend_hitboxes else hitbox.collision_layer
+			if not missing and not suspend_hitboxes:
 				area.transform = skeleton.get_bone_global_pose(hitbox.index) * hitbox.local
 
 func _physics_process(delta: float) -> void:
@@ -306,13 +308,33 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_3: _jump_station(2)
 			KEY_F: last_shot = _shoot(true)
 			KEY_X: last_shot = _shoot(false, true)
+			KEY_V: _slice_camera()
+			KEY_Q: _tilt_slice(-PlaneSlicing.TILT_STEP)
+			KEY_E: _tilt_slice(PlaneSlicing.TILT_STEP)
 			KEY_C:
 				for target in targets:
 					if target.component != null:
 						target.component.call("clean_up_all_referenced_limbs")
+					plane_slicing.clear_fragments(target)
 				_feedback("Detached bodies cleared. R restores the selected subject.")
 			KEY_SPACE:
 				if player.is_on_floor(): player.velocity.y = jump_speed
+
+func _tilt_slice(step: float) -> void:
+	plane_slicing.adjust_tilt(step)
+	_feedback("SLICE PLANE %+d° · V cuts an aimed forearm or fragment" % plane_slicing.tilt_degrees)
+
+func _slice_camera() -> Dictionary:
+	var result := plane_slicing.slice_hit(self, _raycast_camera(), targets)
+	if not result.ok:
+		_feedback("SLICE REFUSED · " + result.error, true)
+		return result
+	active_station = result.target
+	station_label.text = "%02d / %s" % [active_station + 1, targets[active_station].title]
+	_sync_hitboxes()
+	range_audio.play_body_impact(result.point, true)
+	_feedback("PLANE CUT %+d° · V cuts fragments · R restores" % plane_slicing.tilt_degrees)
+	return result
 
 func _shoot(blood_only := false, hide_only := false) -> Dictionary:
 	if shot_cooldown > 0:
@@ -393,7 +415,7 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		if handled_detached.has(limb) or handled_stations.has(index):
 			return {}
 		handled_detached[limb] = true
-		if collider is PhysicalBone3D:
+		if collider is PhysicalBone3D or (collider is RigidBody3D and collider.has_meta(PlaneSlicing.FRAGMENT_META)):
 			collider.apply_central_impulse(direction * collider.mass * detached_limb_hit_impulse)
 		if index >= 0 and index < targets.size():
 			handled_stations[index] = true
@@ -493,9 +515,16 @@ func _raycast_camera() -> Dictionary:
 func _update_aim_label() -> void:
 	if aim_label == null: return
 	var result := _raycast_camera()
-	if not result.is_empty() and (result.collider as Object).has_meta("bone"):
+	if not result.is_empty() and result.collider.has_meta(PlaneSlicing.FRAGMENT_META):
+		aim_label.text = "FRAGMENT · V SLICE %+d°" % plane_slicing.tilt_degrees
+	elif not result.is_empty() and result.collider.has_meta("bone"):
 		var bone: StringName = result.collider.get_meta("bone")
 		aim_label.text = str(bone).to_upper()
+		var index := int(result.collider.get_meta("target_index", -1))
+		if index >= 0 and index < targets.size() and bone in [&"LeftForeArm", &"RightForeArm"]:
+			var target := targets[index]
+			if not target.ragdoll and target.missing.is_empty() and not target.has("plane_slice"):
+				aim_label.text += " · V SLICE %+d°" % plane_slicing.tilt_degrees
 	else:
 		aim_label.text = ""
 
@@ -537,6 +566,7 @@ func _on_post_dismemberment(bone: StringName, limb: Node, index: int) -> void:
 func _reset_target(index: int) -> void:
 	if index < 0 or index >= targets.size(): return
 	var target: Dictionary = targets[index]
+	plane_slicing.restore(target)
 	if target.component != null:
 		target.component.call("reset_all_limbs")
 	target.skeleton.physical_bones_stop_simulation()
@@ -667,6 +697,8 @@ func _update_stats() -> void:
 	for target in targets:
 		if is_instance_valid(target.component):
 			detached += target.component.call("get_all_dismembered_limbs").size()
+		if target.has("plane_slice"):
+			detached += target.plane_slice.fragments.size()
 	stats_label.text = "SHOTGUN\nSHOTS %02d   HITS %02d   LIMBS %02d" % [shots_fired, successful_hits, detached]
 
 func _autoshot(bone: StringName) -> void:

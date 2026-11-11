@@ -20,6 +20,9 @@ protected:
 public:
     static Dictionary isolate_limb(MeshInstance3D *mesh, Skeleton3D *skeleton,
             const StringName &bone, double threshold = 0.5, bool bake_pose = true);
+    // Bake the complete posed triangle mesh in MeshInstance3D local space.
+    // The returned mesh has no Skin or blend shapes and uses the original instance transform.
+    static Ref<ArrayMesh> snapshot_pose(MeshInstance3D *mesh, Skeleton3D *skeleton);
     // Safe LOD retrieval for the 4.3 baseline, whose public server dictionary
     // returns malformed LOD entries. Used when rebuilding painted ArrayMeshes.
     static Dictionary get_surface_lods(const Ref<ArrayMesh> &mesh, int surface);

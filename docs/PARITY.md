@@ -12,6 +12,15 @@ collision. The additional posed convex rigid-body fallback is opt-in through `li
 
 Reliable authority RPCs, explicit owning-peer requests, ordered snapshots, late joins, duplicate suppression and reset were exercised in two separate ENet processes. This replaces the earlier source's unreliable-event/delayed-reconciliation transport with the same tested state outcomes. Cross-engine renderer, solver and artwork equivalence remains distinct from those passed checks.
 
+## Experimental geometric slicing
+
+The `experiment/plane-slicing` branch adds a local FPS trial. It captures the
+current mesh pose, intersects triangles with the chosen plane, and closes
+each side with a cap. Detached pieces use convex collision and can be cut
+again. The demo accepts intact forearms and single-loop cuts. The captured
+remainder holds its pose until reset. Replication and articulated remainder
+animation remain outside the trial.
+
 ## Runtime dismemberment
 
 | Reference behavior | Godot counterpart / acceptance requirement |
