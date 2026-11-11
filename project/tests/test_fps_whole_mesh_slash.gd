@@ -162,6 +162,15 @@ func _run() -> void:
 			"the second level ray targets the upper rigid fragment"):
 		await _finish()
 		return
+	var previous_pellet_count: int = arena.pellet_count
+	arena.pellet_count = 1
+	arena.fire_shake_distance = 0.0
+	var shot_contact: Vector3 = arena._raycast_camera().position
+	var fragment_shot: Dictionary = arena._shoot()
+	arena.pellet_count = previous_pellet_count
+	_expect(fragment_shot.get("hit", false) and fragment_shot.get("sliced", false)
+		and fragment_shot.get("detached", false) and fragment_shot.position.is_equal_approx(shot_contact),
+		"the shotgun hits a sliced fragment at the actual pellet contact")
 	var upper_visual := upper.get_node("Mesh") as MeshInstance3D
 	var upper_transform := upper_visual.global_transform
 	var second := _swipe(SWIPE)
@@ -214,4 +223,36 @@ func _run() -> void:
 		await _physics_frames()
 		_expect(source.is_visible_in_tree() and get_nodes_in_group("Dismembered Limb").is_empty(),
 			"the subject can reset again after a second whole-body swipe")
+	await _aim_level(actor.global_position, 0.62)
+	var nested := _swipe(SWIPE)
+	if _expect(nested.get("ok", false) and nested.get("loop_count", 0) == 6,
+			"a horizontal leg swipe caps all six contours, including cavities: %s" % nested.get("error", "")):
+		_press_reset()
+		await _physics_frames()
+	await _check_slash_after_shot(target, source_mesh.get_aabb().end.x)
 	await _finish()
+
+func _check_slash_after_shot(target: Dictionary, original_left_extent: float) -> void:
+	arena.pellet_count = 1
+	arena.shot_cooldown = 0.0
+	if not _expect(arena._aim_at_bone(0, &"LeftArm"), "the shotgun can aim at the restored left arm"):
+		return
+	await _physics_frames()
+	var shot: Dictionary = arena._shoot()
+	var limb: Node = target.component.get_dismembered_limb_by_name(&"LeftArm")
+	if not _expect(shot.get("bone", &"") == &"LeftArm" and is_instance_valid(limb),
+			"the real shotgun ray severs the left arm before the slash"):
+		return
+	await _aim_level(target.actor.global_position, WAIST_HEIGHT)
+	var result := _swipe(SWIPE)
+	if _expect(result.get("ok", false) and result.get("mode", &"") == &"whole",
+			"a waist swipe slices the remaining body after a shotgun cut: %s" % result.get("error", "")):
+		var largest_left_extent := -INF
+		for fragment: RigidBody3D in result.fragments:
+			var visual := fragment.get_node("Mesh") as MeshInstance3D
+			largest_left_extent = maxf(largest_left_extent, visual.mesh.get_aabb().end.x)
+		_expect(largest_left_extent < original_left_extent - 0.1 and is_instance_valid(limb)
+			and target.component.get_dismembered_limb_by_name(&"LeftArm") == limb,
+			"the slash keeps the existing detached arm and does not regenerate it on the body")
+	_press_reset()
+	await _physics_frames()

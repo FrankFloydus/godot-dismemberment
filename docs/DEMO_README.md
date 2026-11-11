@@ -52,6 +52,8 @@ again. **R** restores the subject. The original **V** forearm cut and
 **Q / E** tilt are also available. Select **Slash Gesture** on the range root
 to edit the reach and cut-surface material. **Simplify Fragment Colliders**
 uses bounded convex colliders to keep dropped pieces inexpensive to simulate.
+You can shoot the sliced body or fragments, and a swipe can cut the remaining
+body after a shotgun sever. Detached fragments react to pellet impact.
 
 Open `demo/demo.tscn` in the Godot editor to edit the range before play. Select
 **FirstPersonDismembermentRange** and open **Shooting** for pellet count, spread,

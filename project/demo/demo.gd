@@ -484,15 +484,18 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		return {}
 	var endpoint: Vector3 = hit.position
 	var direction: Vector3 = hit.direction
+	var sliced_fragment := collider.has_meta(PlaneSlicing.FRAGMENT_META)
+	var sliced_remainder := collider.has_meta(PlaneSlicing.SLICE_REMAINDER_META)
 	var limb := collider as Node
 	while limb != null and not limb.is_in_group("Dismembered Limb"):
 		limb = limb.get_parent()
-	if limb != null:
-		var index: int = limb.get_meta("target_index", -1)
-		if handled_detached.has(limb) or handled_stations.has(index):
+	if limb != null or sliced_remainder:
+		var part: Object = limb if limb != null else collider
+		var index: int = part.get_meta("target_index", -1)
+		if handled_detached.has(part) or handled_stations.has(index):
 			return {}
-		handled_detached[limb] = true
-		if collider is PhysicalBone3D or (collider is RigidBody3D and collider.has_meta(PlaneSlicing.FRAGMENT_META)):
+		handled_detached[part] = true
+		if collider is PhysicalBone3D or (collider is RigidBody3D and sliced_fragment):
 			collider.apply_central_impulse(direction * collider.mass * detached_limb_hit_impulse)
 		if index >= 0 and index < targets.size():
 			handled_stations[index] = true
@@ -501,7 +504,8 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 				gore.spawn_blood_particles(endpoint, direction)
 		if not hide_only:
 			range_audio.play_body_impact(endpoint)
-		return {"hit": true, "detached": true, "position": endpoint}
+		return {"hit": true, "detached": limb != null, "sliced": sliced_fragment or sliced_remainder,
+			"target": index, "position": endpoint}
 
 	if not collider.has_meta("target_index") or not collider.has_meta("bone"):
 		return {"hit": false, "surface": true, "position": endpoint}
@@ -530,9 +534,17 @@ func _apply_pellet_hit(hit: Dictionary, blood_only: bool, hide_only: bool,
 		"position": endpoint, "allowed": allowed}
 
 func _show_shot_result(result: Dictionary, blood_only: bool, hide_only: bool) -> void:
-	if result.get("detached", false):
+	if result.get("detached", false) or result.get("sliced", false):
+		var index: int = result.get("target", -1)
+		if index >= 0 and index < targets.size():
+			active_station = index
+			station_label.text = "%02d / %s" % [active_station + 1, targets[index].title]
 		successful_hits += 1
-		_feedback("DETACHED LIMB HIT")
+		reticle.call("register_hit", false)
+		if result.get("sliced", false):
+			_feedback("SLICE FRAGMENT HIT" if result.detached else "SLICED SUBJECT HIT")
+		else:
+			_feedback("DETACHED LIMB HIT")
 	elif result.get("hit", false):
 		var index: int = result.target
 		var bone := String(result.bone)
@@ -594,6 +606,8 @@ func _update_aim_label() -> void:
 	var result := _raycast_camera()
 	if not result.is_empty() and result.collider.has_meta(PlaneSlicing.FRAGMENT_META):
 		aim_label.text = "FRAGMENT · V SLICE %+d°" % plane_slicing.tilt_degrees
+	elif not result.is_empty() and result.collider.has_meta(PlaneSlicing.SLICE_REMAINDER_META):
+		aim_label.text = "SLICED SUBJECT"
 	elif not result.is_empty() and result.collider.has_meta("bone"):
 		var bone: StringName = result.collider.get_meta("bone")
 		aim_label.text = str(bone).to_upper()

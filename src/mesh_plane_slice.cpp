@@ -285,6 +285,131 @@ bool triangulate(const std::vector<int> &loop, const std::vector<Point2> &points
     return true;
 }
 
+// A hole is joined to its outer contour by a visible bridge. Both copies of
+// the bridge use the original seam IDs so they cancel after triangulation.
+bool crosses_bridge(int a, int b, int c, int d, const std::vector<Point2> &points) {
+    if (!segments_intersect(points[a], points[b], points[c], points[d])) return false;
+    if (b == c || b == d) std::swap(a, b);
+    if (a == d) std::swap(c, d);
+    if (a != c) return true;
+    return orient(points[a], points[b], points[d]) == 0 &&
+            (between(points[b], points[a], points[d]) || between(points[d], points[a], points[b]));
+}
+
+using CapHoles = std::vector<const std::vector<int> *>;
+
+bool inside_cap(const std::vector<int> &outer, const CapHoles &holes, const std::vector<Point2> &points, const Point2 &point) {
+    if (!contains_point(outer, points, point)) return false;
+    return std::none_of(holes.begin(), holes.end(),
+            [&](const auto *hole) { return contains_point(*hole, points, point); });
+}
+
+bool bridge_cap_hole(std::vector<int> &polygon, const std::vector<int> &outer, const CapHoles &holes,
+        const std::vector<int> &hole, size_t hole_index, const std::vector<Point2> &points) {
+    const int from = hole[hole_index];
+    const Point2 &start = points[from];
+    std::vector<std::pair<double, size_t>> candidates;
+    candidates.reserve(polygon.size());
+    for (size_t i = 0; i < polygon.size(); ++i) {
+        const Point2 &end = points[polygon[i]];
+        const double x = end.x - start.x, y = end.y - start.y;
+        candidates.emplace_back(x * x + y * y, i);
+    }
+    std::sort(candidates.begin(), candidates.end());
+    for (const auto &[distance_squared, index] : candidates) {
+        if (distance_squared == 0) continue;
+        const int to = polygon[index];
+        const auto clear = [&](const std::vector<int> &boundary) {
+            for (size_t i = 0; i < boundary.size(); ++i) {
+                if (crosses_bridge(from, to, boundary[i], boundary[(i + 1) % boundary.size()], points)) return false;
+            }
+            return true;
+        };
+        if (!clear(polygon) || !std::all_of(holes.begin(), holes.end(), [&](const auto *ring) { return clear(*ring); })) continue;
+        const Point2 &end = points[to];
+        if (!inside_cap(outer, holes, points, { (start.x + end.x) * 0.5, (start.y + end.y) * 0.5 })) continue;
+
+        std::vector<int> bridged;
+        bridged.reserve(polygon.size() + hole.size() + 2);
+        bridged.insert(bridged.end(), polygon.begin(), polygon.begin() + index + 1);
+        for (size_t i = 0; i <= hole.size(); ++i) bridged.push_back(hole[(hole_index + i) % hole.size()]);
+        bridged.insert(bridged.end(), polygon.begin() + index, polygon.end());
+        polygon.swap(bridged);
+        return true;
+    }
+    return false;
+}
+
+bool triangulate_cap(const std::vector<int> &outer, const CapHoles &holes, const std::vector<Point2> &points, std::vector<int> &output) {
+    if (holes.empty()) return triangulate(outer, points, output);
+
+    std::vector<int> polygon = outer;
+    for (const auto *hole : holes) {
+        const auto anchor = std::min_element(hole->begin(), hole->end(), [&](int a, int b) {
+            return points[a].x == points[b].x ? points[a].y < points[b].y : points[a].x < points[b].x;
+        });
+        if (!bridge_cap_hole(polygon, outer, holes, *hole, size_t(anchor - hole->begin()), points)) return false;
+    }
+
+    std::vector<int> triangles;
+    if (!triangulate(polygon, points, triangles)) return false;
+    // Verify that cap triangles meet every seam edge with opposite winding,
+    // pair all their interior edges, and stay within the material region.
+    std::unordered_map<EdgeKey, int8_t> edges;
+    const auto add_boundary = [&](const std::vector<int> &ring) {
+        for (size_t i = 0; i < ring.size(); ++i) {
+            if (!record_edge(edges, ring[i], ring[(i + 1) % ring.size()])) return false;
+        }
+        return true;
+    };
+    if (!add_boundary(outer)) return false;
+    for (const auto *hole : holes) {
+        if (!add_boundary(*hole)) return false;
+    }
+    for (size_t i = 0; i < triangles.size(); i += 3) {
+        const int a = triangles[i], b = triangles[i + 1], c = triangles[i + 2];
+        if (!record_edge(edges, a, b) || !record_edge(edges, b, c) || !record_edge(edges, c, a)) return false;
+        const Point2 &p = points[a], &q = points[b], &r = points[c];
+        if (!inside_cap(outer, holes, points, { (p.x + q.x + r.x) / 3.0, (p.y + q.y + r.y) / 3.0 })) return false;
+    }
+    if (std::any_of(edges.begin(), edges.end(), [](const auto &edge) { return edge.second != 0; })) return false;
+    output.insert(output.end(), triangles.begin(), triangles.end());
+    return true;
+}
+
+class SliceComponents {
+    std::vector<size_t> parents;
+    std::vector<uint8_t> ranks;
+
+public:
+    explicit SliceComponents(size_t vertex_count) : parents(vertex_count), ranks(vertex_count) {
+        std::iota(parents.begin(), parents.end(), size_t(0));
+    }
+
+    size_t root(size_t vertex) {
+        while (parents[vertex] != vertex) {
+            parents[vertex] = parents[parents[vertex]];
+            vertex = parents[vertex];
+        }
+        return vertex;
+    }
+
+    void join_triangle(size_t a, size_t b, size_t c) {
+        join(a, b);
+        join(a, c);
+    }
+
+private:
+    void join(size_t a, size_t b) {
+        a = root(a);
+        b = root(b);
+        if (a == b) return;
+        if (ranks[a] < ranks[b]) std::swap(a, b);
+        parents[b] = a;
+        if (ranks[a] == ranks[b]) ++ranks[a];
+    }
+};
+
 class SliceGeometry {
     std::array<double, 3> normal;
     double distance;
@@ -294,17 +419,20 @@ class SliceGeometry {
     std::unordered_map<EdgeKey, int8_t> positive_seam;
     std::unordered_map<EdgeKey, int8_t> negative_seam;
     std::vector<std::vector<int>> loops;
+    std::vector<int> seam_origins;
 
     double signed_distance(const Vector3 &point) const {
         return normal[0] * point.x + normal[1] * point.y + normal[2] * point.z - distance;
     }
 
-    int seam_vertex(Vertex &vertex) {
+    int seam_vertex(int welded_vertex) {
+        Vertex &vertex = vertices[welded_vertex];
         if (vertex.seam < 0) {
             vertex.seam = int(seam_positions.size());
             seam_positions.emplace_back(real_t(vertex.position.x - normal[0] * vertex.distance),
                     real_t(vertex.position.y - normal[1] * vertex.distance),
                     real_t(vertex.position.z - normal[2] * vertex.distance));
+            seam_origins.push_back(welded_vertex);
         }
         return vertex.seam;
     }
@@ -322,6 +450,7 @@ class SliceGeometry {
             seam_positions.emplace_back(real_t(start.position.x + (double(end.position.x) - start.position.x) * t),
                     real_t(start.position.y + (double(end.position.y) - start.position.y) * t),
                     real_t(start.position.z + (double(end.position.z) - start.position.z) * t));
+            seam_origins.push_back(std::min(va, vb));
         }
         const double da = vertices[va].distance, db = vertices[vb].distance;
         return { a, b, entry->second, real_t(da / (da - db)) };
@@ -377,7 +506,24 @@ class SliceGeometry {
         return true;
     }
 
-    bool build_caps() {
+    std::vector<size_t> loop_shells(const std::vector<SurfaceInput> &input) const {
+        SliceComponents shells(vertices.size());
+        for (const SurfaceInput &surface : input) {
+            const int32_t *indices = surface.indices.is_empty() ? nullptr : surface.indices.ptr();
+            for (int face = 0; face < int(surface.element_count()); face += 3) {
+                const int a = indices ? indices[face] : face;
+                const int b = indices ? indices[face + 1] : face + 1;
+                const int c = indices ? indices[face + 2] : face + 2;
+                shells.join_triangle(surface.topology[a], surface.topology[b], surface.topology[c]);
+            }
+        }
+        std::vector<size_t> result;
+        result.reserve(loops.size());
+        for (const auto &loop : loops) result.push_back(shells.root(seam_origins[loop.front()]));
+        return result;
+    }
+
+    const char *build_caps(const std::vector<SurfaceInput> &input) {
         const Vector3 axis = std::abs(cap_normal.x) < 0.8 ? Vector3(1, 0, 0) : Vector3(0, 1, 0);
         cap_tangent = axis.cross(cap_normal).normalized();
         const Vector3 bitangent = cap_normal.cross(cap_tangent).normalized();
@@ -388,37 +534,87 @@ class SliceGeometry {
             cap_uv.push_back({ x * cap_tangent.x + y * cap_tangent.y + z * cap_tangent.z,
                     x * bitangent.x + y * bitangent.y + z * bitangent.z });
         }
+        const size_t no_parent = loops.size();
+        std::vector<double> areas(loops.size());
         for (size_t li = 0; li < loops.size(); ++li) {
             const std::vector<int> &loop = loops[li];
             const size_t count = loop.size();
-            double area = 0;
             for (size_t i = 0; i < count; ++i) {
                 const Point2 &a = cap_uv[loop[i]], &b = cap_uv[loop[(i + 1) % count]];
-                if (a.x == b.x && a.y == b.y) return false;
+                if (a.x == b.x && a.y == b.y) return "The cut has a degenerate contour.";
                 const Point2 &next = cap_uv[loop[(i + 2) % count]];
-                if (orient(a, b, next) == 0 && (between(next, a, b) || between(a, b, next))) return false;
-                area += orient(cap_uv[loop.front()], a, b);
+                if (orient(a, b, next) == 0 && (between(next, a, b) || between(a, b, next))) {
+                    return "The cut contour overlaps itself.";
+                }
+                areas[li] += orient(cap_uv[loop.front()], a, b);
                 for (size_t j = i + 2; j < count; ++j) {
                     if (i == 0 && j + 1 == count) continue;
-                    if (segments_intersect(a, b, cap_uv[loop[j]], cap_uv[loop[(j + 1) % count]])) return false;
-                }
-            }
-            // The exterior positive-side boundary is clockwise in this basis.
-            // A reversed or nested contour cannot be capped as a solid disk.
-            if (area >= 0) return false;
-            for (size_t lj = 0; lj < li; ++lj) {
-                const std::vector<int> &other = loops[lj];
-                for (size_t i = 0; i < count; ++i) {
-                    for (size_t j = 0; j < other.size(); ++j) {
-                        if (segments_intersect(cap_uv[loop[i]], cap_uv[loop[(i + 1) % count]],
-                                cap_uv[other[j]], cap_uv[other[(j + 1) % other.size()]])) return false;
+                    if (segments_intersect(a, b, cap_uv[loop[j]], cap_uv[loop[(j + 1) % count]])) {
+                        return "The cut contour crosses itself.";
                     }
                 }
-                if (contains_point(loop, cap_uv, cap_uv[other.front()]) || contains_point(other, cap_uv, cap_uv[loop.front()])) return false;
             }
-            if (!triangulate(loop, cap_uv, cap_indices)) return false;
+            if (areas[li] == 0) return "The cut has a degenerate contour.";
         }
-        return true;
+
+        std::vector<size_t> parent(loops.size(), no_parent);
+        const auto set_parent = [&](size_t child, size_t container) {
+            if (parent[child] == no_parent || std::abs(areas[container]) < std::abs(areas[parent[child]])) {
+                parent[child] = container;
+            }
+        };
+        for (size_t li = 0; li < loops.size(); ++li) {
+            const auto &loop = loops[li];
+            for (size_t lj = 0; lj < li; ++lj) {
+                const auto &other = loops[lj];
+                for (size_t i = 0; i < loop.size(); ++i) {
+                    for (size_t j = 0; j < other.size(); ++j) {
+                        if (segments_intersect(cap_uv[loop[i]], cap_uv[loop[(i + 1) % loop.size()]],
+                                cap_uv[other[j]], cap_uv[other[(j + 1) % other.size()]])) {
+                            return "The cut contours touch or cross.";
+                        }
+                    }
+                }
+                if (contains_point(loop, cap_uv, cap_uv[other.front()])) set_parent(lj, li);
+                if (contains_point(other, cap_uv, cap_uv[loop.front()])) set_parent(li, lj);
+            }
+        }
+
+        std::vector<CapHoles> holes(loops.size());
+        std::vector<size_t> shells;
+        const auto shell_for = [&](size_t index) {
+            if (shells.empty()) shells = loop_shells(input);
+            return shells[index];
+        };
+        for (size_t i = 0; i < loops.size(); ++i) {
+            size_t enclosing = parent[i];
+            // On the positive shell the outlines are clockwise. A
+            // counterclockwise contour removes material from its parent.
+            if (areas[i] > 0) {
+                if (enclosing == no_parent || areas[enclosing] > 0) return "A cut cavity lacks a valid outline.";
+                if (parent[enclosing] != no_parent && areas[parent[enclosing]] < 0) {
+                    // Several solid outlines enclose this cavity. Follow its
+                    // source shell so the cap cannot join independent solids.
+                    const size_t cavity_shell = shell_for(i);
+                    while (enclosing != no_parent && areas[enclosing] < 0 && shell_for(enclosing) != cavity_shell) {
+                        enclosing = parent[enclosing];
+                    }
+                    if (enclosing == no_parent || areas[enclosing] > 0) return "A cut cavity has ambiguous shell ownership.";
+                }
+                holes[enclosing].push_back(&loops[i]);
+            } else {
+                while (enclosing != no_parent && areas[enclosing] < 0) {
+                    if (shell_for(i) == shell_for(enclosing)) return "Nested cut outlines overlap on one shell.";
+                    enclosing = parent[enclosing];
+                }
+            }
+        }
+        for (size_t i = 0; i < loops.size(); ++i) {
+            if (areas[i] < 0 && !triangulate_cap(loops[i], holes[i], cap_uv, cap_indices)) {
+                return "Could not triangulate the cut cap.";
+            }
+        }
+        return nullptr;
     }
 
 public:
@@ -496,7 +692,7 @@ public:
                     sides[i] = vertex.side;
                     positive += vertex.side > 0;
                     negative += vertex.side < 0;
-                    corners[i] = { index, -1, vertex.side == 0 ? seam_vertex(vertex) : -1 };
+                    corners[i] = { index, -1, vertex.side == 0 ? seam_vertex(welded[i]) : -1 };
                 }
                 if (!has_area(source[ids[0]], source[ids[1]], source[ids[2]])) return "The mesh contains a degenerate triangle.";
                 if (!topology_edges.record(welded[0], welded[1]) || !topology_edges.record(welded[1], welded[2]) ||
@@ -533,8 +729,7 @@ public:
         }
         if (!topology_edges.is_closed()) return "The mesh is open after exact position welding.";
         if (!collect_loops()) return "The plane does not produce matching closed cut boundaries.";
-        if (!build_caps()) return "The cut contains a nested, touching, or degenerate contour.";
-        return nullptr;
+        return build_caps(input);
     }
 };
 
@@ -671,39 +866,6 @@ Dictionary failure(const char *message) {
     result["error"] = String(message);
     return result;
 }
-
-class SliceComponents {
-    std::vector<size_t> parents;
-    std::vector<uint8_t> ranks;
-
-public:
-    explicit SliceComponents(size_t vertex_count) : parents(vertex_count), ranks(vertex_count) {
-        std::iota(parents.begin(), parents.end(), size_t(0));
-    }
-
-    size_t root(size_t vertex) {
-        while (parents[vertex] != vertex) {
-            parents[vertex] = parents[parents[vertex]];
-            vertex = parents[vertex];
-        }
-        return vertex;
-    }
-
-    void join_triangle(size_t a, size_t b, size_t c) {
-        join(a, b);
-        join(a, c);
-    }
-
-private:
-    void join(size_t a, size_t b) {
-        a = root(a);
-        b = root(b);
-        if (a == b) return;
-        if (ranks[a] < ranks[b]) std::swap(a, b);
-        parents[b] = a;
-        if (ranks[a] == ranks[b]) ++ranks[a];
-    }
-};
 
 bool publish_pieces(TypedArray<ArrayMesh> &output, const std::vector<SurfaceInput> &input, const SliceGeometry &geometry,
         bool positive, const Ref<Material> &cap_material) {

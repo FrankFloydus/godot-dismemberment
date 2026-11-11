@@ -71,6 +71,25 @@ bounded collider is an approximation of the full convex hull and keeps its
 body-axis extents. These measurements cover simulation after the cuts. The
 input-to-cut timings are recorded above.
 
+### Reloading and mixed cuts
+
+The saved editor tab order opens the FPS scene before the separate range
+scene. Godot 4.7 emitted 12 transform-format errors on that reload before
+the fix. The range's MultiMeshes now clear their instance allocation during
+resource reset, and the same editor startup and authored scene regression
+complete without those errors.
+
+The native geometry tests cover cap holes, islands inside holes, nested
+separate shells, recutting an annular cap, and rejecting touching contours.
+On the posed demo model, horizontal cuts at local heights of 0.62 m and
+0.84 m produce six and nine contours respectively. The lower cut also
+passes through the actual mouse gesture in the FPS test.
+
+The demo regressions fire real pellets at a rigid slice fragment and the
+retained quick-cut torso. They also sever an arm and swipe the remaining
+body while checking that the detached arm is preserved. A separate Forward+
+check swipes a moving source ragdoll after a head cut.
+
 ## FPS cut latency
 
 Measured the authored FPS scene on the same Godot 4.7 Compatibility renderer

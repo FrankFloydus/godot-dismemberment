@@ -121,8 +121,9 @@ hull points in 98 directions, keeping the exact extents along the body
 axes. The demo enables it by default for fragment simulation. The display
 and subsequent cuts use the complete sliced mesh.
 
-Use closed, consistently wound triangle meshes. Cuts that overlap a face
-or form nested or touching contours can be refused. Returned pieces are
+Use closed, consistently wound triangle meshes. Valid closed contours can
+include holes. Cuts that overlap a face or form touching or crossing
+contours can be refused. Returned pieces are
 pose-baked, so games decide their physics, lifetime, animation, and
 replication. Time the operation on your own assets before using it for
 frequent combat.

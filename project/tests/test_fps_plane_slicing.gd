@@ -91,6 +91,15 @@ func _run() -> void:
 		muted = muted and body.collision_layer == 0
 	_expect(muted, "source hitboxes and original physical bodies are suppressed")
 
+	arena.pellet_count = 1
+	arena.fire_shake_distance = 0.0
+	_expect(arena._aim_at_bone(0, &"Hips"), "the camera can aim into the retained torso")
+	await _physics_frames()
+	var remainder_shot: Dictionary = arena._shoot()
+	_expect(remainder_shot.get("hit", false) and remainder_shot.get("sliced", false)
+		and not remainder_shot.get("detached", false),
+		"the shotgun hits the visible body after the quick forearm cut")
+
 	var fragment: RigidBody3D = slice.fragments[0]
 	_expect(fragment.is_in_group("Dismembered Limb") and fragment.collision_layer != 0
 		and fragment.get_node("CollisionShape3D").shape is ConvexPolygonShape3D

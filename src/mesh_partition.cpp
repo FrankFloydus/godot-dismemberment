@@ -344,7 +344,8 @@ void bake_skin(Array &arrays, const Ref<Skin> &skin, Skeleton3D *skeleton,
     bake_skin_arrays(arrays, palette, false);
 }
 
-std::vector<SkinBind> snapshot_palette(MeshInstance3D *mesh, Skeleton3D *skeleton) {
+std::vector<SkinBind> snapshot_palette(MeshInstance3D *mesh, Skeleton3D *skeleton,
+        const PackedStringArray &collapsed_roots) {
     if (!skeleton || skeleton->get_bone_count() == 0) return {};
     Ref<Skin> skin = mesh->get_skin();
     const Ref<SkinReference> reference = mesh->get_skin_reference();
@@ -358,6 +359,18 @@ std::vector<SkinBind> snapshot_palette(MeshInstance3D *mesh, Skeleton3D *skeleto
     const int bind_count = skin.is_valid() ? skin->get_bind_count() : skeleton->get_bone_count();
     RenderingServer *renderer = RenderingServer::get_singleton();
     const bool use_rendered_pose = renderer && palette_rid.is_valid() && renderer->skeleton_get_bone_count(palette_rid) == bind_count;
+    std::vector<bool> collapsed;
+    if (!collapsed_roots.is_empty()) {
+        collapsed.resize(skeleton->get_bone_count());
+        for (const String &name : collapsed_roots) {
+            const int root = skeleton->find_bone(name);
+            if (root >= 0) collapsed[root] = true;
+        }
+    }
+    const Basis zero_basis{ Vector3(), Vector3(), Vector3() };
+    // Fully collapsed vertices coincide. A millimetre-scale copy
+    // preserves a closed surface for cutting without restoring a missing limb.
+    const Basis compressed_basis = Basis::from_scale(Vector3(0.001, 0.001, 0.001));
     std::vector<SkinBind> palette(bind_count);
     for (int slot = 0; slot < bind_count; ++slot) {
         const int bone = mapped_bone(skin, skeleton, slot);
@@ -373,6 +386,20 @@ std::vector<SkinBind> snapshot_palette(MeshInstance3D *mesh, Skeleton3D *skeleto
             const Transform3D inverse_bind = skin.is_valid() ? skin->get_bind_pose(slot) : rest.affine_inverse();
             transform = skeleton->get_bone_global_pose(bone) * inverse_bind;
         }
+        if (!collapsed.empty()) {
+            int collapsed_root = -1;
+            for (int ancestor = bone; ancestor >= 0; ancestor = skeleton->get_bone_parent(ancestor)) {
+                if (collapsed[ancestor]) collapsed_root = ancestor;
+            }
+            if (collapsed_root >= 0) {
+                // The renderer records the cut pivot in the origin of its zero basis.
+                // Headless renderers may provide no skin palette.
+                if (!use_rendered_pose || transform.basis != zero_basis) {
+                    transform.origin = skeleton->get_bone_global_pose(collapsed_root).origin;
+                }
+                transform.basis = compressed_basis;
+            }
+        }
         if (transform.is_finite()) palette[slot] = make_skin_bind(transform, true);
     }
     return palette;
@@ -384,12 +411,14 @@ void MeshPartition::_bind_methods() {
     ClassDB::bind_static_method("MeshPartition", D_METHOD("isolate_limb", "mesh", "skeleton", "bone", "threshold", "bake_pose"),
             &MeshPartition::isolate_limb, DEFVAL(0.5), DEFVAL(true));
     ClassDB::bind_static_method("MeshPartition", D_METHOD("get_surface_lods", "mesh", "surface"), &MeshPartition::get_surface_lods);
-    ClassDB::bind_static_method("MeshPartition", D_METHOD("snapshot_pose", "mesh", "skeleton"), &MeshPartition::snapshot_pose);
+    ClassDB::bind_static_method("MeshPartition", D_METHOD("snapshot_pose", "mesh", "skeleton", "collapsed_roots"),
+            &MeshPartition::snapshot_pose, DEFVAL(PackedStringArray()));
 }
 
-Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D *skeleton) {
+Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D *skeleton,
+        const PackedStringArray &collapsed_roots) {
     std::vector<MeshPoseSurface> surfaces;
-    if (!snapshot_pose_surfaces(instance, skeleton, surfaces)) return {};
+    if (!snapshot_pose_surfaces(instance, skeleton, surfaces, collapsed_roots)) return {};
 
     Ref<ArrayMesh> output;
     output.instantiate();
@@ -403,7 +432,8 @@ Ref<ArrayMesh> MeshPartition::snapshot_pose(MeshInstance3D *instance, Skeleton3D
     return output;
 }
 
-bool MeshPartition::snapshot_pose_surfaces(MeshInstance3D *instance, Skeleton3D *skeleton, std::vector<MeshPoseSurface> &surfaces) {
+bool MeshPartition::snapshot_pose_surfaces(MeshInstance3D *instance, Skeleton3D *skeleton, std::vector<MeshPoseSurface> &surfaces,
+        const PackedStringArray &collapsed_roots) {
     if (!instance) return false;
     const Ref<ArrayMesh> source = instance->get_mesh();
     if (source.is_null() || source->get_surface_count() == 0) return false;
@@ -443,7 +473,7 @@ bool MeshPartition::snapshot_pose_surfaces(MeshInstance3D *instance, Skeleton3D 
         const uint64_t surface_skin = format & skin_channels;
         if (surface_skin != 0) {
             if (surface_skin != skin_channels) return false;
-            if (palette.empty()) palette = snapshot_palette(instance, skeleton);
+            if (palette.empty()) palette = snapshot_palette(instance, skeleton, collapsed_roots);
             if (palette.empty() || !bake_skin_arrays(arrays, palette, true)) return false;
         } else {
             const PackedVector3Array posed_positions = arrays[Mesh::ARRAY_VERTEX];

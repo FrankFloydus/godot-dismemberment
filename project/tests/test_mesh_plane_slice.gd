@@ -39,6 +39,7 @@ func _run() -> void:
 	var concave := _make_concave_prism(exterior)
 	_check_cut(concave, Plane(Vector3.RIGHT, -0.2), cap, [exterior],
 		1, 5.0, 6.0, 4.0, "concave cap loop")
+	_check_nested_contours(exterior, cap, recut_cap)
 
 	_check_rejected(_make_boxes([Vector3.ZERO], exterior, true), Plane(Vector3.RIGHT, 0.35),
 		"open source")
@@ -260,7 +261,8 @@ func _volume(mesh: ArrayMesh) -> float:
 				positions[indices[offset + 2]].cross(positions[indices[offset + 1]])) / 6.0
 	return total
 
-func _make_boxes(centers: Array[Vector3], material: Material, open := false) -> ArrayMesh:
+func _make_boxes(centers: Array[Vector3], material: Material, open := false,
+		half_size := 1.0, inside := false) -> ArrayMesh:
 	var builder := SurfaceTool.new()
 	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
 	builder.set_material(material)
@@ -268,10 +270,81 @@ func _make_boxes(centers: Array[Vector3], material: Material, open := false) -> 
 		for normal in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]:
 			if open and normal == Vector3.RIGHT:
 				continue
-			var u: Vector3 = Vector3.UP if absf(normal.y) < 0.5 else Vector3.RIGHT
-			var v: Vector3 = normal.cross(u)
-			var origin: Vector3 = center + normal
-			_add_quad(builder, origin - u - v, origin - u + v, origin + u + v, origin + u - v, normal)
+			var axis := Vector3.UP if absf(normal.y) < 0.5 else Vector3.RIGHT
+			var u := axis * half_size
+			var v: Vector3 = normal.cross(axis) * half_size
+			var origin: Vector3 = center + normal * half_size
+			_add_quad(builder, origin - u - v, origin - u + v, origin + u + v, origin + u - v,
+				-normal if inside else normal)
+	builder.index()
+	return builder.commit()
+
+func _check_nested_contours(exterior: Material, cap: Material, recut_cap: Material) -> void:
+	var plane := Plane(Vector3.RIGHT, 0.25)
+	var tube := _make_square_tube(exterior)
+	var split := _check_cut(tube, plane, cap, [exterior], 2, 12.0, 9.0, 15.0,
+		"connected square tube with a hole")
+	var positive := split.get("positive_mesh") as ArrayMesh
+	if positive != null:
+		_check_cut(positive, Plane(Vector3.UP, 0.0), recut_cap, [exterior, cap],
+			2, 1.5, 4.5, 4.5, "recut through the annular cap")
+
+	var inner := _make_boxes([Vector3.ZERO], exterior, false, 0.5)
+	tube.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, inner.surface_get_arrays(0))
+	tube.surface_set_material(1, exterior)
+	_check_cut(tube, plane, cap, [exterior], 3, 13.0, 9.25, 15.75, "material island inside a cut hole")
+
+	var nested := _make_boxes([Vector3.ZERO], exterior)
+	nested.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, inner.surface_get_arrays(0))
+	nested.surface_set_material(1, exterior)
+	_check_cut(nested, plane, cap, [exterior], 2, 5.0, 3.25, 5.75, "nested independent solid shells")
+	var pieces := MeshPlaneSlice.slice_mesh_pieces(nested, plane, cap)
+	_check(pieces.get("positive_pieces", []).size() == 2 and pieces.get("negative_pieces", []).size() == 2,
+		"the caps of independent nested solids do not join the pieces")
+
+	var shell_with_hole := _make_square_tube(exterior)
+	var overlapping_solid := _make_boxes([Vector3.ZERO], exterior, false, 1.5)
+	shell_with_hole.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, overlapping_solid.surface_get_arrays(0))
+	shell_with_hole.surface_set_material(1, exterior)
+	pieces = MeshPlaneSlice.slice_mesh_pieces(shell_with_hole, plane, cap)
+	_check(pieces.get("positive_pieces", []).size() == 2 and pieces.get("negative_pieces", []).size() == 2,
+		"the connected cavity is capped with its own shell even inside another solid outline")
+
+	var ambiguous_cavity := _make_boxes([Vector3.ZERO], exterior, false, 0.375, true)
+	nested.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ambiguous_cavity.surface_get_arrays(0))
+	var ambiguous := MeshPlaneSlice.slice_mesh(nested, plane, cap)
+	_check(ambiguous.get("error") == "A cut cavity has ambiguous shell ownership." and not ambiguous.has("positive_mesh"),
+		"a disconnected cavity inside overlapping solid outlines is rejected atomically")
+
+	var multiple := _make_boxes([Vector3.ZERO], exterior, false, 2.0)
+	var cavities := _make_boxes([Vector3(0, -0.75, 0), Vector3(0, 0.75, 0)], exterior, false, 0.25, true)
+	multiple.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, cavities.surface_get_arrays(0))
+	multiple.surface_set_material(1, exterior)
+	_check_cut(multiple, Plane(Vector3.RIGHT, 0.125), cap, [exterior], 3, 15.5, 29.9375, 33.8125,
+		"two cut cavities within one outline")
+
+	var crossing := _make_boxes([Vector3.ZERO, Vector3(0, 1.25, 0.75)], exterior)
+	var refused := MeshPlaneSlice.slice_mesh(crossing, plane, cap)
+	_check(refused.get("error") == "The cut contours touch or cross." and not refused.has("positive_mesh"),
+		"intersecting section outlines are rejected with a specific diagnostic")
+
+func _make_square_tube(material: Material) -> ArrayMesh:
+	var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
+	var builder := SurfaceTool.new()
+	builder.begin(Mesh.PRIMITIVE_TRIANGLES)
+	builder.set_material(material)
+	for i in corners.size():
+		var a: Vector2 = corners[i]
+		var b: Vector2 = corners[(i + 1) % corners.size()]
+		var edge := b - a
+		var normal := Vector3(0, edge.y, -edge.x).normalized()
+		for radius in [1.0, 2.0]:
+			_add_quad(builder, _prism_vertex(-1.0, a * radius), _prism_vertex(-1.0, b * radius),
+				_prism_vertex(1.0, b * radius), _prism_vertex(1.0, a * radius),
+				normal if radius == 2.0 else -normal)
+		for x in [-1.0, 1.0]:
+			_add_quad(builder, _prism_vertex(x, a * 2.0), _prism_vertex(x, b * 2.0),
+				_prism_vertex(x, b), _prism_vertex(x, a), Vector3(x, 0, 0))
 	builder.index()
 	return builder.commit()
 
